@@ -29,7 +29,7 @@ import Data.List
 data Type = TyInt | TyBool
  deriving Eq
 
-data Program = Program Defs Expr 
+data Program = Program Defs Expr
 
 type Name  = String
 
