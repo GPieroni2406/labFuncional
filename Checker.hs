@@ -43,7 +43,7 @@ instance Show Error where
 checkProgram :: Program -> Checked
 checkProgram (Program xs exp) | (length hayError == 0) = Ok
                                 | otherwise = Wrong (hayError)
-                                where hayError = checkFunctionDup [] xs ++ checkParameter xs  ++ checkNameParameter xs  ++ compararVariablesFuncion xs ++ checkMain xs exp
+                                where hayError = checkFunctionDup [] xs ++ checkParameter xs  ++ checkNameParameter xs  ++ compararVariablesFuncion xs ++ checkMain xs exp ++ checkTypeDefinicion xs
 
 checkFunctionDup::[String]->Defs->[Error]
 --Recorro cada Funcion y verifico que no hay nombres repetidos.
@@ -125,3 +125,37 @@ parametrosFunDef (x:xs) name | ((obtenerNombre x) == name) = length (obtenerPara
 checkMainAux:: Defs-> String-> Int -> [Error]
 checkMainAux xs name cantidad | (parametrosFunDef xs name) == cantidad = []
                               | otherwise = [ArgNumApp (name) (parametrosFunDef xs name) (cantidad)]
+
+checkTypeDefinicion :: Defs -> [Error]
+checkTypeDefinicion (x:xs) = checkTypeDefinicionParticular x ++ checkTypeDefinicion xs
+checkTypeDefinicion [] = []
+
+checkTypeDefinicionParticular::FunDef->[Error]
+checkTypeDefinicionParticular (FunDef (n,(Sig es s)) vs (If e1 e2 e3)) = corroborarTipo TyBool (zip vs es) e1 ++ corroborarTipo s (zip vs es) e2 ++ corroborarTipo s (zip vs es) e3
+checkTypeDefinicionParticular (FunDef (n,(Sig es s)) vs (Infix o e1 e2)) |((obtenerTipoOperador o) == s) = corroborarTipo (obtenerTipoOperador o) (zip vs es) e1 ++ corroborarTipo (obtenerTipoOperador o) (zip vs es) e2
+                                                                     | otherwise = [Expected s (obtenerTipoOperador o)]
+checkTypeDefinicionParticular (FunDef (n,(Sig es s)) vs (Let (x,y) e1 e2) ) = []
+checkTypeDefinicionParticular (FunDef (n,(Sig es s)) vs (App name xs)) = []
+
+obtenerTipoOperador :: Op -> Type
+obtenerTipoOperador o | o `elem` [Add,Sub,Mult,Div] = TyInt
+                      | otherwise = TyBool
+
+corroborarTipo :: Type -> [(Name,Type)] -> Expr -> [Error]
+corroborarTipo t xs  (Var x) | t == (obtenerTipoVariable x xs) = []
+                               | otherwise = [Expected t (obtenerTipoVariable x xs)]
+corroborarTipo t xs (Infix op e1 e2) | ((obtenerTipoOperador op) == t) = corroborarTipo (obtenerTipoOperador op) xs e1 ++ corroborarTipo (obtenerTipoOperador op) xs e2
+                                       | otherwise = [Expected t (obtenerTipoOperador op)]
+corroborarTipo t xs  (If e1 e2 e3) = corroborarTipo (TyBool) xs e1 ++ corroborarTipo t xs e2 ++ corroborarTipo t xs e3
+corroborarTipo t xs  (Let (x,y) e1 e2) = []
+corroborarTipo t xs  (App name ys) = []
+
+obtenerName::(Name,Type) -> Name
+obtenerName (a,b) = a
+
+obtenerType::(Name,Type) -> Type
+obtenerType (a,b) = b
+
+obtenerTipoVariable::Name->[(Name,Type)] -> Type
+obtenerTipoVariable x (y:ys) | x == (obtenerName y) = obtenerType y
+                             | otherwise = obtenerTipoVariable x ys
