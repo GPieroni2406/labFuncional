@@ -127,25 +127,50 @@ checkMainAux xs name cantidad | (parametrosFunDef xs name) == cantidad = []
                               | otherwise = [ArgNumApp (name) (parametrosFunDef xs name) (cantidad)]
 
 checkTypeDefinicion :: Defs -> [Error]
-checkTypeDefinicion (x:xs) = checkTypeDefinicionParticular x ++ checkTypeDefinicion xs
+checkTypeDefinicion (x:xs) = checkTypeDefinicionParticular x xs ++ checkTypeDefinicion xs
 checkTypeDefinicion [] = []
 
-checkTypeDefinicionParticular::FunDef->[Error]
-checkTypeDefinicionParticular (FunDef (n,(Sig es s)) vs (If e1 e2 e3)) = corroborarTipo TyBool (zip vs es) e1 ++ corroborarTipo s (zip vs es) e2 ++ corroborarTipo s (zip vs es) e3
-checkTypeDefinicionParticular (FunDef (n,(Sig es s)) vs (Infix o e1 e2)) |((obtenerTipoOperador o) == s) = corroborarTipo (obtenerTipoOperador o) (zip vs es) e1 ++ corroborarTipo (obtenerTipoOperador o) (zip vs es) e2
-                                                                     | otherwise = [Expected s (obtenerTipoOperador o)]
-checkTypeDefinicionParticular (FunDef (n,(Sig es s)) vs (Let (x,y) e1 e2) ) = []
-checkTypeDefinicionParticular (FunDef (n,(Sig es s)) vs (App name xs)) = []
+checkTypeDefinicionParticular::FunDef->Defs->[Error]
+checkTypeDefinicionParticular (FunDef (n,(Sig es s)) vs (If e1 e2 e3)) xs = corroborarTipo TyBool (zip vs es) e1 ++ corroborarTipo s (zip vs es) e2 ++ corroborarTipo s (zip vs es) e3
+checkTypeDefinicionParticular (FunDef (n,(Sig es s)) vs (Infix NEq e1 e2)) xs|(TyBool == s) = corroborarTipo (obtenerTipoError (zip vs es) e1 xs) (zip vs es) e1 ++  corroborarTipo (obtenerTipoError (zip vs es) e1 xs) (zip vs es) e2
+checkTypeDefinicionParticular (FunDef (n,(Sig es s)) vs (Infix Eq e1 e2)) xs| (TyBool == s) = corroborarTipo (obtenerTipoError (zip vs es) e1 xs) (zip vs es) e1 ++  corroborarTipo (obtenerTipoError (zip vs es) e1 xs) (zip vs es) e2
+checkTypeDefinicionParticular (FunDef (n,(Sig es s)) vs (Infix o e1 e2)) xs |((obtenerTipoOperador o) == s) = corroborarTipo (obtenerTipoOperador o) (zip vs es) e1 ++ corroborarTipo (obtenerTipoOperador o) (zip vs es) e2
+                                                                            | otherwise = [Expected s (obtenerTipoOperador o)]
+checkTypeDefinicionParticular (FunDef (n,(Sig es s)) vs (Let (x,y) e1 e2) ) xs = []
+checkTypeDefinicionParticular (FunDef (n,(Sig es s)) vs (App name ys)) xs = []
 
 obtenerTipoOperador :: Op -> Type
 obtenerTipoOperador o | o `elem` [Add,Sub,Mult,Div] = TyInt
                       | otherwise = TyBool
 
+obtenerTipoError :: [(Name,Type)]-> Expr -> Defs -> Type
+obtenerTipoError xs (Var n) zs = obtenerType n xs
+obtenerTipoError xs (BoolLit _) zs = BoolLit
+obtenerTipoError xs (IntLit _) zs = TyInt
+obtenerTipoError xs (Infix o e1 e2) zs | o `elem` [Eq, NEq] = obtenerTipoError e1
+                                            zs | otherwise = obtenerTipoOperador o
+obtenerTipoError xs (If e1 e2 e3) zs = obtenerTipoError e2
+obtenerTipoError xs (App n ys) zs = getTipoFuncionPorNombre n zs
+obtenerTipoError xs (Let (n, t) e1 e2) zs = t
+
+obtenerTipoFuncion :: FunDef->Type
+obtenerTipoFuncion (FunDef t ys e) = obtenerTipoRetorno t 
+
+obtenerTipoRetorno :: TypedFun -> Type
+obtenerTipoRetorno (_ , Sig _ x) = x
+
+getTipoFuncionPorNombre :: Defs -> Name -> Type
+getTipoFuncionPorNombre (x:xs) n | ((obtenerNombre x) == n) = obtenerTipoFuncion x 
+                                 | otherwise = getTipoFuncionPorNombre xs n
+
+
 corroborarTipo :: Type -> [(Name,Type)] -> Expr -> [Error]
 corroborarTipo t xs  (Var x) | t == (obtenerTipoVariable x xs) = []
                                | otherwise = [Expected t (obtenerTipoVariable x xs)]
+corroborarTipo t xs (Infix Eq e1 e2) |(TyBool == t) = corroborarTipo (obtenerTipoError xs e1 xs) xs e1 ++  corroborarTipo (obtenerTipoError xs e1 xs) xs e2
+corroborarTipo t xs (Infix NEq e1 e2)| (TyBool == t) = corroborarTipo (obtenerTipoError xs e1 xs) xs e1 ++  corroborarTipo (obtenerTipoError xs e1 xs) xs e2
 corroborarTipo t xs (Infix op e1 e2) | ((obtenerTipoOperador op) == t) = corroborarTipo (obtenerTipoOperador op) xs e1 ++ corroborarTipo (obtenerTipoOperador op) xs e2
-                                       | otherwise = [Expected t (obtenerTipoOperador op)]
+                                     | otherwise = [Expected t (obtenerTipoOperador op)]
 corroborarTipo t xs  (If e1 e2 e3) = corroborarTipo (TyBool) xs e1 ++ corroborarTipo t xs e2 ++ corroborarTipo t xs e3
 corroborarTipo t xs  (Let (x,y) e1 e2) = []
 corroborarTipo t xs  (App name ys) = []
