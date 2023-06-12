@@ -38,19 +38,25 @@ instance Show Error where
  show (Expected    ty ty')
    = "Expected: " ++ show ty ++ " Actual: " ++ show ty'
 
-
 checkProgram :: Program -> Checked
+checkProgram (Program xs exp) = if (length (checkFunctionDup [] xs ++ checkParameter xs)) > 0
+                                then Wrong (checkFunctionDup [] xs ++ checkParameter xs)
+                                else if (length (compararVariablesFuncion xs ++ verificarFuncionesExistentes xs exp)) > 0
+                                     then Wrong (compararVariablesFuncion xs ++ verificarFuncionesExistentes xs exp)
+                                     else if (length (checkTypeTotal xs exp)) > 0
+                                          then Wrong (checkTypeTotal xs exp)
+                                          else Ok
+
+{- checkProgram :: Program -> Checked
 checkProgram (Program xs exp)
   | length errores1 == 0 && length errores3 == 0 && length errores4 == 0 = Ok
   | length errores1 > 0 = Wrong errores1
   | length errores1 == 0 && length errores4 > 0 = Wrong errores4
- -- | length errores1 == 0 && length errores4 == 0 && length errores2 > 0 = Wrong errores2
   | length errores1 == 0 && length errores3 > 0 && length errores4 == 0 = Wrong errores3
   where
     errores1 = checkFunctionDup [] xs ++ checkParameter xs
-    --errores2 = checkNameParameter xs ++ checkMain xs exp
-    errores3 = compararVariablesFuncion xs ++ checkMain xs exp
-    errores4 = checkTypeTotal xs exp
+    errores3 = compararVariablesFuncion xs ++ verificarFuncionesExistentes xs exp
+    errores4 = checkTypeTotal xs exp -}
 
 -------2.1----------------
 checkFunctionDup::[String]->Defs->[Error]
@@ -88,36 +94,57 @@ checkNameParameterApp (App name vs) xs | (length vs) == (parametrosFunDef xs nam
 
 
 checkMain :: Defs -> Expr -> [Error]
-checkMain xs (App name ys) = (checkMainAux xs name (length ys)) ++ (checkMainColeccion xs ys) 
+checkMain xs (App name ys) = (checkMainColeccion xs ys) 
 checkMain xs (Infix op e1 e2) = checkMain xs e1 ++ checkMain xs e2
 checkMain xs (If e1 e2 e3) = checkMain xs e1 ++ checkMain xs e2 ++ checkMain xs e3
 checkMain xs (Let (x,y) e1 e2) = checkMain xs e1 ++ checkMain xs e2
 checkMain xs _ = []
 
+checkMainColeccion::Defs -> [Expr] -> [Error]
+checkMainColeccion xs (y:ys) = checkMain xs y ++ checkMainColeccion xs ys
+checkMainColeccion xs [] = []
+
+
 checkMainAux:: Defs-> String-> Int -> [Error]
 checkMainAux xs name cantidad | (parametrosFunDef xs name) == cantidad = []
-                              | otherwise = [ArgNumApp (name) (parametrosFunDef xs name) (cantidad)]
+                              | otherwise = [ArgNumApp (name) (parametrosFunDef xs name) (cantidad)] 
 
 -----------------------------------------
 
 -------2.3-----------------------
 
 compararVariablesFuncion::Defs->[Error]
-compararVariablesFuncion (x:xs) = compararVariablesExpresion (obtenerParametros x) (obtenerExpresion x) ++ compararVariablesFuncion xs
+compararVariablesFuncion (x:xs) = compararVariablesExpresion (obtenerParametros x) (obtenerExpresion x) (x:xs) ++ compararVariablesFuncion xs
 compararVariablesFuncion [] = []
 
-compararVariablesExpresion :: [String]->Expr->[Error]
-compararVariablesExpresion ys (Var x) | elem x ys = []
-compararVariablesExpresion ys (Var x) | otherwise = [Undefined x]
-compararVariablesExpresion ys (Infix op e1 e2) = compararVariablesExpresion ys e1 ++ compararVariablesExpresion ys e2
-compararVariablesExpresion ys (If e1 e2 e3) = compararVariablesExpresion ys e1 ++ compararVariablesExpresion ys e2 ++ compararVariablesExpresion ys e3
-compararVariablesExpresion ys (Let (x,y) e1 e2) = compararVariablesExpresion ys e1 ++ compararVariablesExpresion ys e2
-compararVariablesExpresion ys (App name xs) = recorrerListaExpresion ys xs
-compararVariablesExpresion ys _ = [] 
+compararVariablesExpresion :: [String]->Expr->Defs->[Error]
+compararVariablesExpresion ys (Var x) zs | elem x ys = []
+                                         | otherwise = [Undefined x]
+compararVariablesExpresion ys (Infix op e1 e2) zs = compararVariablesExpresion ys e1 zs ++ compararVariablesExpresion ys e2 zs
+compararVariablesExpresion ys (If e1 e2 e3) zs = compararVariablesExpresion ys e1 zs ++ compararVariablesExpresion ys e2 zs ++ compararVariablesExpresion ys e3 zs
+compararVariablesExpresion ys (Let (x,y) e1 e2) zs = compararVariablesExpresion ys e1 zs ++ compararVariablesExpresion ys e2 zs
+compararVariablesExpresion ys (App name xs) zs | existeFunDef zs name =  recorrerListaExpresion ys xs zs
+                                               | otherwise = [Undefined name] ++ recorrerListaExpresion ys xs zs
+compararVariablesExpresion ys _ zs = [] 
 --Para el caso donde tenemos una lista de expresiones, la recorre y entra a la funcion de arriba.
-recorrerListaExpresion :: [String]->[Expr]->[Error]
-recorrerListaExpresion ys (x:xs) = compararVariablesExpresion ys x ++ recorrerListaExpresion ys xs
-recorrerListaExpresion ys [] = []
+recorrerListaExpresion :: [String]->[Expr]-> Defs ->[Error]
+recorrerListaExpresion ys (x:xs) zs = compararVariablesExpresion ys x zs ++ recorrerListaExpresion ys xs zs
+recorrerListaExpresion ys [] zs = []
+
+verificarFuncionesExistentes :: Defs -> Expr -> [Error]
+verificarFuncionesExistentes xs (App name ys) | (existeFunDef xs name) = desglosarExpresiones xs  ys
+                           | otherwise = [Undefined name] ++ desglosarExpresiones xs  ys
+verificarFuncionesExistentes xs (Infix op e1 e2) = verificarFuncionesExistentes xs e1 ++ verificarFuncionesExistentes xs e2
+verificarFuncionesExistentes xs (If e1 e2 e3) = verificarFuncionesExistentes xs e1 ++ verificarFuncionesExistentes xs e2 ++ verificarFuncionesExistentes xs e3
+verificarFuncionesExistentes xs (Let (x,y) e1 e2) = verificarFuncionesExistentes xs e1 ++ verificarFuncionesExistentes xs e2
+verificarFuncionesExistentes xs (Var x) = [Undefined x]
+verificarFuncionesExistentes xs _ = []
+
+
+
+desglosarExpresiones :: Defs -> [Expr] -> [Error]
+desglosarExpresiones xs (y:ys) = verificarFuncionesExistentes xs y ++ desglosarExpresiones xs ys
+desglosarExpresiones xs [] = []
 
 -------------------------------------------------------------------------------------------------------
 
@@ -165,7 +192,7 @@ corroborarTipo t xs  (If e1 e2 e3) ys = corroborarTipo (TyBool) xs e1 ys ++ corr
 corroborarTipo t xs  (Let (x,y) e1 e2) ys   | ((obtenerTipoError xs e2 ys) == t) = ((corroborarTipo y xs e1 ys) ++ (corroborarTipo t (sustituirDupla (x,(obtenerTipoError xs e2 ys)) xs) e2 ys))
                                             | otherwise = [Expected t (obtenerTipoError (sustituirDupla (x,(obtenerTipoError xs e2 ys)) xs) e2 ys)]
 corroborarTipo t xs  (App name ws) ys | ((getTipoFuncionPorNombre ys name) == t) = checkNameParameterApp (App name ws) ys ++ verificarParametrosSegunFirma (getTiposFuncionPorNombre ys name) ws xs ys
-                                      | otherwise = [Expected t (getTipoFuncionPorNombre ys name)] ++ verificarParametrosSegunFirma (getTiposFuncionPorNombre ys name) ws xs ys
+                                      | otherwise = [Expected t (getTipoFuncionPorNombre ys name)] ++ checkNameParameterApp (App name ws) ys  ++ verificarParametrosSegunFirma (getTiposFuncionPorNombre ys name) ws xs ys
 
 
 -------------------------------------------------------------------------------------------------------
@@ -188,21 +215,28 @@ listaEntrada (Sig xs y) = xs
 obtenerExpresion::FunDef->Expr
 obtenerExpresion (FunDef(a, x) ys e) = e
 
+parametrosFunDef :: Defs -> String -> Int
+parametrosFunDef (x:xs) name
+  | obtenerNombre x == name = length (obtenerParametrosEnFirma x)
+  | otherwise = parametrosFunDef xs name
+parametrosFunDef [] _ = 0
 
-checkMainColeccion::Defs -> [Expr] -> [Error]
-checkMainColeccion xs (y:ys) = checkMain xs y ++ checkMainColeccion xs ys
-checkMainColeccion xs [] = []
-
-parametrosFunDef::Defs->String->Int 
-parametrosFunDef (x:xs) name | ((obtenerNombre x) == name) = length (obtenerParametrosEnFirma x)
-                             | otherwise =  parametrosFunDef xs name
+existeFunDef :: Defs -> String -> Bool
+existeFunDef (x:xs) name
+  | obtenerNombre x == name = True
+  | otherwise = existeFunDef  xs name
+existeFunDef [] _ = False
 
 obtenerAmbiente::FunDef -> [(Name,Type)]
 obtenerAmbiente  (FunDef (n,(Sig es s)) vs e) = zip vs es
 
 checkTypeDefinicion :: Defs -> [Error]
-checkTypeDefinicion (x:xs) = checkNameParameterFunction x ++ (corroborarTipo (obtenerTipoFuncion x) (obtenerAmbiente x) (obtenerExpresion x) (x:xs)) ++ checkTypeDefinicion xs
+checkTypeDefinicion (x:xs)
+  | length errores > 0 = errores ++ checkTypeDefinicion xs
+  | otherwise = corroborarTipo (obtenerTipoFuncion x) (obtenerAmbiente x) (obtenerExpresion x) (x:xs) ++ checkTypeDefinicion xs
+  where errores = checkNameParameterFunction x
 checkTypeDefinicion [] = []
+
 
 
 verificarParametrosSegunFirma:: [Type] -> [Expr] ->[(Name,Type)]-> Defs -> [Error]
@@ -239,8 +273,12 @@ obtenerTipoRetorno :: TypedFun -> Type
 obtenerTipoRetorno (_ , Sig _ x) = x
 
 getTipoFuncionPorNombre :: Defs -> Name -> Type
-getTipoFuncionPorNombre (x:xs) n | ((obtenerNombre x) == n) = obtenerTipoFuncion x 
-                                 | otherwise = getTipoFuncionPorNombre xs n
+getTipoFuncionPorNombre (x:xs) n
+  | obtenerNombre x == n = obtenerTipoFuncion x
+  | otherwise = getTipoFuncionPorNombre xs n
+getTipoFuncionPorNombre [] _ = error "Function not found."
+
+
 obtenerName::(Name,Type) -> Name
 obtenerName (a,b) = a
 
