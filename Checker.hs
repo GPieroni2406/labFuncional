@@ -208,7 +208,7 @@ checkTypeDefinicion [] = []
 verificarParametrosSegunFirma:: [Type] -> [Expr] ->[(Name,Type)]-> Defs -> [Error]
 verificarParametrosSegunFirma (x:xs) (y:ys) zs ws = (corroborarTipo x zs y ws) ++ (verificarParametrosSegunFirma xs ys zs ws)
 verificarParametrosSegunFirma (x:xs) [] zs ws = []
-verificarParametrosSegunFirma [] (y:ys) zs ws = []
+verificarParametrosSegunFirma [] _ _ _ = []
 
 
 getTiposFuncionPorNombre :: Defs -> Name -> [Type]
