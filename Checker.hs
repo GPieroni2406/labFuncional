@@ -156,7 +156,7 @@ checkTypeMain:: Defs -> Expr ->[Error]
 checkTypeMain xs (BoolLit x) = []
 checkTypeMain xs (IntLit x) = []
 checkTypeMain xs (Infix o e1 e2) | o `elem` [Eq,NEq,GEq,LEq,GTh,LTh] = corroborarTipo (obtenerTipoError [] e1 xs) [] e2 xs ++ corroborarTipo (obtenerTipoError [] e1 xs) [] e1 xs
-checkTypeMain xs (Infix o e1 e2) | otherwise = corroborarTipo (TyInt) [] e2 xs ++ corroborarTipo (TyInt) [] e1 xs
+                                 | otherwise = corroborarTipo (TyInt) [] e2 xs ++ corroborarTipo (TyInt) [] e1 xs
 checkTypeMain xs (App n vs) = corroborarTipo (getTipoFuncionPorNombre xs n) [] (App n vs) xs
 checkTypeMain xs (If e1 e2 e3) = corroborarTipo TyBool [] e1 xs ++ corroborarTipo (obtenerTipoError [] e2 xs) [] e2 xs ++ corroborarTipo (obtenerTipoError [] e2 xs) [] e3 xs
 checkTypeMain xs (Let (x,y) e1 e2) = corroborarTipo y [] e1 xs ++ corroborarTipo (obtenerTipoError [] e2 xs) [] e1 xs
