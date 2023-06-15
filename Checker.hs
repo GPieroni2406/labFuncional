@@ -112,8 +112,9 @@ compararVariablesExpresion ys (Var x) zs | elem x ys = []
                                          | otherwise = [Undefined x]
 compararVariablesExpresion ys (Infix op e1 e2) zs = compararVariablesExpresion ys e1 zs ++ compararVariablesExpresion ys e2 zs
 compararVariablesExpresion ys (If e1 e2 e3) zs = compararVariablesExpresion ys e1 zs ++ compararVariablesExpresion ys e2 zs ++ compararVariablesExpresion ys e3 zs
-compararVariablesExpresion ys (Let (x,y) e1 e2) zs = compararVariablesExpresion ys e1 zs ++ compararVariablesExpresion ys e2 zs
-compararVariablesExpresion ys (App name xs) zs | existeFunDef zs name =  recorrerListaExpresion ys xs zs
+compararVariablesExpresion ys (Let (x,y) e1 e2) zs | (elem x ys) = compararVariablesExpresion ys e1 zs ++ compararVariablesExpresion ys e2 zs
+                                                   | otherwise = [Undefined x] ++ compararVariablesExpresion ys e1 zs ++ compararVariablesExpresion ys e2 zs
+compararVariablesExpresion ys (App name xs) zs | (elem name ys) =  recorrerListaExpresion ys xs zs
                                                | otherwise = [Undefined name] ++ recorrerListaExpresion ys xs zs
 compararVariablesExpresion ys _ zs = [] 
 --Para el caso donde tenemos una lista de expresiones, la recorre y entra a la funcion de arriba.
@@ -123,7 +124,7 @@ recorrerListaExpresion ys [] zs = []
 
 verificarFuncionesExistentes :: Defs -> Expr -> [Error]
 verificarFuncionesExistentes xs (App name ys) | (existeFunDef xs name) = desglosarExpresiones xs  ys
-                           | otherwise = [Undefined name] ++ desglosarExpresiones xs  ys
+                                              | otherwise = [Undefined name] ++ desglosarExpresiones xs  ys
 verificarFuncionesExistentes xs (Infix op e1 e2) = verificarFuncionesExistentes xs e1 ++ verificarFuncionesExistentes xs e2
 verificarFuncionesExistentes xs (If e1 e2 e3) = verificarFuncionesExistentes xs e1 ++ verificarFuncionesExistentes xs e2 ++ verificarFuncionesExistentes xs e3
 verificarFuncionesExistentes xs (Let (x,y) e1 e2) = verificarFuncionesExistentes xs e1 ++ verificarFuncionesExistentes xs e2
@@ -214,7 +215,7 @@ parametrosFunDef [] _ = 0
 existeFunDef :: Defs -> String -> Bool
 existeFunDef (x:xs) name
   | obtenerNombre x == name = True
-  | otherwise = existeFunDef  xs name
+  | otherwise = existeFunDef xs name
 existeFunDef [] _ = False
 
 obtenerAmbiente::FunDef -> [(Name,Type)]
@@ -245,8 +246,10 @@ getTiposFuncionPorNombre (x:xs) n | ((obtenerNombre x) == n) = obtenerParametros
 obtenerTipoOperador :: Op -> Type
 obtenerTipoOperador o | o `elem` [Add,Sub,Mult,Div] = TyInt
                       | otherwise = TyBool
-sustituirDupla :: (Name, Type)->[(Name, Type)] -> [(Name, Type)]
-sustituirDupla (n,t) (x:xs)  = map (\x -> if obtenerName x == n then (n,t) else x) xs
+
+sustituirDupla :: (Name, Type) -> [(Name, Type)] -> [(Name, Type)]
+sustituirDupla _ [] = []
+sustituirDupla (n,t) (x:xs) = map (\x -> if obtenerName x == n then (n,t) else x) (x:xs)
 
 obtenerTipoError :: [(Name,Type)]-> Expr -> Defs -> Type
 obtenerTipoError xs (Var n) zs = obtenerTipoVariable n xs
