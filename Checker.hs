@@ -47,16 +47,6 @@ checkProgram (Program xs exp) = if (length (checkFunctionDup [] xs ++ checkParam
                                           then Wrong (checkTypeTotal xs exp)
                                           else Ok
 
-{- checkProgram :: Program -> Checked
-checkProgram (Program xs exp)
-  | length errores1 == 0 && length errores3 == 0 && length errores4 == 0 = Ok
-  | length errores1 > 0 = Wrong errores1
-  | length errores1 == 0 && length errores4 > 0 = Wrong errores4
-  | length errores1 == 0 && length errores3 > 0 && length errores4 == 0 = Wrong errores3
-  where
-    errores1 = checkFunctionDup [] xs ++ checkParameter xs
-    errores3 = compararVariablesFuncion xs ++ verificarFuncionesExistentes xs exp
-    errores4 = checkTypeTotal xs exp -}
 
 -------2.1----------------
 checkFunctionDup::[String]->Defs->[Error]
@@ -155,8 +145,8 @@ checkTypeTotal xs main = checkTypeDefinicion xs ++ checkTypeMain xs main
 checkTypeMain:: Defs -> Expr ->[Error]
 checkTypeMain xs (BoolLit x) = []
 checkTypeMain xs (IntLit x) = []
-checkTypeMain xs (Infix o e1 e2) | o `elem` [Eq,NEq,GEq,LEq,GTh,LTh] = corroborarTipo (obtenerTipoError [] e1 xs) [] e2 xs ++ corroborarTipo (obtenerTipoError [] e1 xs) [] e1 xs
-                                 | otherwise = corroborarTipo (TyInt) [] e2 xs ++ corroborarTipo (TyInt) [] e1 xs
+checkTypeMain xs (Infix o e1 e2) | o `elem` [Eq,NEq,GEq,LEq,GTh,LTh] = corroborarTipo (obtenerTipoError [] e1 xs) [] e1 xs ++ corroborarTipo (obtenerTipoError [] e1 xs) [] e2 xs
+                                 | otherwise = corroborarTipo (TyInt) [] e1 xs ++ corroborarTipo (TyInt) [] e2 xs
 checkTypeMain xs (App n vs) = corroborarTipo (getTipoFuncionPorNombre xs n) [] (App n vs) xs
 checkTypeMain xs (If e1 e2 e3) = corroborarTipo TyBool [] e1 xs ++ corroborarTipo (obtenerTipoError [] e2 xs) [] e2 xs ++ corroborarTipo (obtenerTipoError [] e2 xs) [] e3 xs
 checkTypeMain xs (Let (x,y) e1 e2) = corroborarTipo y [] e1 xs ++ corroborarTipo (obtenerTipoError [] e2 xs) [] e1 xs
@@ -241,8 +231,10 @@ checkTypeDefinicion [] = []
 
 verificarParametrosSegunFirma:: [Type] -> [Expr] ->[(Name,Type)]-> Defs -> [Error]
 verificarParametrosSegunFirma (x:xs) (y:ys) zs ws = (corroborarTipo x zs y ws) ++ (verificarParametrosSegunFirma xs ys zs ws)
-verificarParametrosSegunFirma (x:xs) [] zs ws = []
-verificarParametrosSegunFirma [] _ _ _ = []
+verificarParametrosSegunFirma _ [] zs ws = []
+verificarParametrosSegunFirma [] _ zs ws = []
+--verificarParametrosSegunFirma [] (y:ys) _ _ = []
+--verificarParametrosSegunFirma (y:ys) [] _ _ = []
 
 
 getTiposFuncionPorNombre :: Defs -> Name -> [Type]
