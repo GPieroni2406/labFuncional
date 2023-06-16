@@ -15,26 +15,89 @@ import Syntax
 
 import Data.List
 
+import Control.Monad.State
+
+type Global = State Int
+
+increment :: Global ()
+increment = modify (+1)
+
+decrement :: Global ()
+decrement = modify (subtract 1)
+
+getValue :: Global Int
+getValue = get
+
+setValue :: Int -> Global ()
+setValue = put
+
+runMyState :: Global a -> Int -> (a, Int)
+runMyState = runState
+
+
+
 -- CODE GENERATOR
 
 genProgram :: Program -> String
 genProgram Program defs main = "#include <stdio.h>"+ "\n" + convertirDefs defs + "\n" + convertirMain main
 
+c :: Int
+c = 0
+
+
+
 convertirDefs :: Defs -> String
 convertirDefs (x:xs) = convertirFuncion x xs ++ convertirDefs xs
 convertirDefs [] = ""
 
+-- Let, main y funciones precisan return 
+
 convertirFuncion :: FunDef -> Defs -> String 
-convertirFuncion (FunDef(a, x) ys e) defs = "int" + convertirIdentificador a + 
+convertirFuncion (FunDef(a, x) ys e) defs = "int " + convertirIdentificador a + "(" + separarLista ys + ")" + "{" + verificarLet e (runMyState (setValue c) c) + convertirExpr e 0 + "return" + "};"
+
+
+verificarLet :: Expr -> Integer -> String
+verificarLet _ c = ""
+verificarLet (Infix o e1 e2) c = verificarLet e1 c + verificarLet e2 c
+verificarLet (If e1 e2 e3) c = verificarLet e1 c + verificarLet e2 c + verificarLet e3 c
+verificarLet (Let (x,y) e1 e2) c = convertirLet (Let (x,y) (verificarLet e1 c) (verificarLet e2 c+1)) c
+verificarLet (App n vs) c = map verificarLet vs
+
+
+
+convertirExpr :: Expr -> Integer -> String 
+convertirExpr (BoolLit x) c = convertirBool x
+convertirExpr (IntLit x) c =  show x
+convertirExpr (Var name) c = convertirIdentificador name
+convertirExpr (Infix Eq e1 e2) c = convertirExpr e1 c + "==" + convertirExpr e2 c
+convertirExpr (Infix NEq e1 e2) c = convertirExpr e1 c + "!=" + convertirExpr e2 c
+convertirExpr (Infix GTh e1 e2) c = convertirExpr e1 c + ">" + convertirExpr e2 c
+convertirExpr (Infix LTh e1 e2) c = convertirExpr e1 c + "<" + convertirExpr e2 c
+convertirExpr (Infix GEq e1 e2) c = convertirExpr e1 c + ">=" + convertirExpr e2 c
+convertirExpr (Infix LEq e1 e2) c = convertirExpr e1 c + "<=" + convertirExpr e2 c
+convertirExpr (Infix Add e1 e2) c = convertirExpr e1 c + "+" + convertirExpr e2 c
+convertirExpr (Infix Sub e1 e2) c = convertirExpr e1 c + "-" + convertirExpr e2 c
+convertirExpr (Infix Mult e1 e2) c = convertirExpr e1 c + "*" + convertirExpr e2 c
+convertirExpr (Infix Div e1 e2) c = convertirExpr e1 c + "/" + convertirExpr e2 c
+convertirExpr (If e1 e2 e3) c = "If" + convertirExpr e1 c + "{" + convertirExpr e2 c + "}" + "else" + "{" + convertirExpr e3 c "};"
+convertirExpr (Let (x,y) e1 e2) c = 
+convertirExpr (App n vs) c = show n + "(" + separarLista vs + ")"
 
 convertirMain :: Expr -> String
 convertirMain main = "int main {" -- Se debe poner en let en caso de que haya
- + "\n" + "printf" + "(%d\n ," + convertirExp main + ");}"
+ + "\n" + "printf" + "(%d\n ," + convertirExpr main 0 + ");}"
 
 
 
 ------------------Auxiliares--------------------------
-convertir
+
+convertirLet :: Expr -> Integer -> String
+convertirLet (Let (x,y) e1 e2) c =  "int " + "_let" + show c  + "(int"+ convertirIdentificador x + ")" + "{"  + convertirExpr e c+1 + "};"
+convertirLet _ _ = ""
+
+
+separarLista :: Show a => [a] -> String
+separarLista xs = intercalate "," (map show xs)
 
 convertirIdentificador :: Name -> String
 convertirIdentificador name = "_" + show name
