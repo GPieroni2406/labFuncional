@@ -34,7 +34,7 @@ convertirDefs [] = ""
 -- Let, main y funciones precisan return 
 
 convertirFuncion :: FunDef -> Defs -> String 
-convertirFuncion (FunDef(a, x) ys e) defs = "int "++ convertirIdentificador a ++ "(" ++ separarLista ys ++ ")" ++ "{" ++ verificarLet e 0 ++ "return(" ++ convertirExpr e 0 ++"); };"
+convertirFuncion (FunDef(a, x) ys e) defs = "int "++ convertirIdentificador a ++ "(" ++ separarConComas ys ++ ")" ++ "{\n" ++ verificarLet e 0 ++ "return(" ++ convertirExpr e 0 ++"); };\n"
 
 
 verificarLet :: Expr -> Integer -> String
@@ -47,7 +47,7 @@ verificarLet (Let (x,y) e1 e2) c = convertirLet (Let (x,y) e1 e2) c
 verificarLet (App n vs) c = intercalate "\n" (verificarEnApp vs c)
 
 convertirLet :: Expr -> Integer -> String
-convertirLet (Let (x,y) e1 e2) c =  "int "++ "_let" ++ show c  ++ "(int"++  convertirIdentificador x ++ ")" ++ "{"++ "\n"++  verificarLet e1 (c+1) ++ "\n"++ "return (" ++ convertirExpr e2 (c+1) ++ "); };"
+convertirLet (Let (x,y) e1 e2) c =  "int "++ "_let" ++ show c  ++ "(int"++  convertirIdentificador x ++ ")" ++ "{"++  verificarLet e1 (c+1) ++ "\n"++ "return (" ++ convertirExpr e2 (c+1) ++ "); };\n"
 convertirLet _ _ = ""
 
 
@@ -67,7 +67,7 @@ convertirExpr (Infix Mult e1 e2) c = (convertirExpr e1 c ++ "*" ++ convertirExpr
 convertirExpr (Infix Div e1 e2) c = (convertirExpr e1 c ++ "/" ++ convertirExpr e2 c)
 convertirExpr (If e1 e2 e3) c = "If" ++ convertirExpr e1 c ++ " {\n" ++ convertirExpr e2 c ++ "} else {\n" ++ convertirExpr e3 c ++ "};"
 convertirExpr (Let (x,y) e1 e2) c = "_let" ++ (show c) ++ "(" ++  (convertirExpr e1 (c+1)) ++ ")"
-convertirExpr (App n vs) c = show n ++ "(" ++ separarListaString (convertirEnApp vs c) ++ ")"
+convertirExpr (App n vs) c = n ++ "(" ++ separarListaString (convertirEnApp vs c) ++ ")"
 
 convertirEnApp :: [Expr] -> Integer -> [String]
 convertirEnApp (v:vs) c = [convertirExpr v c] ++ convertirEnApp vs c
@@ -76,7 +76,7 @@ convertirEnApp [] _ = []
 
 convertirMain :: Expr -> String
 convertirMain main = "int main {"
- ++ "\n"++  verificarLet main 0 ++ "\n" ++ "printf" ++ "(%d\n ," ++ convertirExpr main 0 ++ "); }"
+ ++   verificarLet main 0  ++ "printf" ++ "(%d ," ++ convertirExpr main 0 ++ "); }"
 
 
 -------------------REVISAR PASAJE DE CONTADORES EN LETS------------------------
@@ -89,11 +89,11 @@ verificarEnApp [] _ = []
 separarListaString :: [String] -> String
 separarListaString xs = intercalate "," xs
 
-separarLista :: Show a => [a] -> String
-separarLista xs = intercalate "," (map show xs)
+separarConComas :: [String] -> String
+separarConComas xs = intercalate ", " (map (\x -> "int _" ++ x) xs)
 
 convertirIdentificador :: Name -> String
-convertirIdentificador name = "_" ++ (show name)
+convertirIdentificador name = "_" ++ name
 
 convertirBool :: Expr -> String 
 convertirBool (BoolLit True) = "1"
