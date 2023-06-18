@@ -41,8 +41,8 @@ instance Show Error where
 checkProgram :: Program -> Checked
 checkProgram (Program xs exp) = if (length (checkFunctionDup [] xs ++ checkParameter xs)) > 0
                                 then Wrong (checkFunctionDup [] xs ++ checkParameter xs)
-                                else if (length (compararVariablesFuncion xs ++ verificarFuncionesExistentes xs exp)) > 0
-                                     then Wrong (compararVariablesFuncion xs ++ verificarFuncionesExistentes xs exp)
+                                else if (length (compararVariablesFuncion xs ++ verificarFuncionesExistentes xs exp [])) > 0
+                                     then Wrong (compararVariablesFuncion xs ++ verificarFuncionesExistentes xs exp [])
                                      else if (length (checkTypeTotal xs exp)) > 0
                                           then Wrong (checkTypeTotal xs exp)
                                           else Ok
@@ -114,7 +114,7 @@ compararVariablesExpresion ys (Infix op e1 e2) zs = compararVariablesExpresion y
 compararVariablesExpresion ys (If e1 e2 e3) zs = compararVariablesExpresion ys e1 zs ++ compararVariablesExpresion ys e2 zs ++ compararVariablesExpresion ys e3 zs
 compararVariablesExpresion ys (Let (x,y) e1 e2) zs | (elem x ys) = compararVariablesExpresion ys e1 zs ++ compararVariablesExpresion ys e2 zs
                                                    | otherwise = [Undefined x] ++ compararVariablesExpresion ys e1 zs ++ compararVariablesExpresion ys e2 zs
-compararVariablesExpresion ys (App name xs) zs | (elem name ys) =  recorrerListaExpresion ys xs zs
+compararVariablesExpresion ys (App name xs) zs | (existeFunDef zs name) =  recorrerListaExpresion ys xs zs
                                                | otherwise = [Undefined name] ++ recorrerListaExpresion ys xs zs
 compararVariablesExpresion ys _ zs = [] 
 --Para el caso donde tenemos una lista de expresiones, la recorre y entra a la funcion de arriba.
@@ -122,20 +122,21 @@ recorrerListaExpresion :: [String]->[Expr]-> Defs ->[Error]
 recorrerListaExpresion ys (x:xs) zs = compararVariablesExpresion ys x zs ++ recorrerListaExpresion ys xs zs
 recorrerListaExpresion ys [] zs = []
 
-verificarFuncionesExistentes :: Defs -> Expr -> [Error]
-verificarFuncionesExistentes xs (App name ys) | (existeFunDef xs name) = desglosarExpresiones xs  ys
-                                              | otherwise = [Undefined name] ++ desglosarExpresiones xs  ys
-verificarFuncionesExistentes xs (Infix op e1 e2) = verificarFuncionesExistentes xs e1 ++ verificarFuncionesExistentes xs e2
-verificarFuncionesExistentes xs (If e1 e2 e3) = verificarFuncionesExistentes xs e1 ++ verificarFuncionesExistentes xs e2 ++ verificarFuncionesExistentes xs e3
-verificarFuncionesExistentes xs (Let (x,y) e1 e2) = verificarFuncionesExistentes xs e1 ++ verificarFuncionesExistentes xs e2
-verificarFuncionesExistentes xs (Var x) = [Undefined x]
-verificarFuncionesExistentes xs _ = []
+verificarFuncionesExistentes :: Defs -> Expr -> [(Name,Type)] -> [Error]
+verificarFuncionesExistentes xs (App name ys) zs | (existeFunDef xs name) = desglosarExpresiones xs ys zs
+                                                 | otherwise = [Undefined name] ++ desglosarExpresiones xs ys zs
+verificarFuncionesExistentes xs (Infix op e1 e2) zs = verificarFuncionesExistentes xs e1 zs ++ verificarFuncionesExistentes xs e2 zs
+verificarFuncionesExistentes xs (If e1 e2 e3) zs = verificarFuncionesExistentes xs e1 zs ++ verificarFuncionesExistentes xs e2 zs ++ verificarFuncionesExistentes xs e3 zs
+verificarFuncionesExistentes xs (Let (x,y) e1 e2) zs = verificarFuncionesExistentes xs e1 zs ++ verificarFuncionesExistentes xs e2 ([(x,y)] ++ zs)
+verificarFuncionesExistentes xs (Var x) zs | (consultarVariableAmbiente x zs) = []
+                                           | otherwise = [Undefined x] 
+verificarFuncionesExistentes xs _ zs = []
 
 
 
-desglosarExpresiones :: Defs -> [Expr] -> [Error]
-desglosarExpresiones xs (y:ys) = verificarFuncionesExistentes xs y ++ desglosarExpresiones xs ys
-desglosarExpresiones xs [] = []
+desglosarExpresiones :: Defs -> [Expr] -> [(Name,Type)]-> [Error]
+desglosarExpresiones xs (y:ys) zs = verificarFuncionesExistentes xs y zs ++ desglosarExpresiones xs ys zs
+desglosarExpresiones xs [] _ = []
 
 -------------------------------------------------------------------------------------------------------
 
@@ -154,13 +155,10 @@ checkTypeMain xs (Let (x,y) e1 e2) = corroborarTipo y [] e1 xs ++ corroborarTipo
 checkTypeMain xs (Var name) = []
 
 corroborarTipo :: Type -> [(Name,Type)] -> Expr -> Defs -> [Error]
-corroborarTipo TyBool xs (IntLit x) ys = [Expected TyBool TyInt]
 
 corroborarTipo TyInt xs (IntLit x) ys = []
 
 corroborarTipo TyInt xs (BoolLit x) ys = [Expected TyInt TyBool]
-
-corroborarTipo TyBool xs (BoolLit x) ys = []
 
 corroborarTipo t xs  (Var x) ys | t == (obtenerTipoVariable x xs) = []
                                 | otherwise = [Expected t (obtenerTipoVariable x xs)]
@@ -180,10 +178,15 @@ corroborarTipo t xs (Infix o e1 e2) ys | ((obtenerTipoOperador o) == t) = corrob
                                         | otherwise = [Expected t (obtenerTipoOperador o)]
 corroborarTipo t xs  (If e1 e2 e3) ys = corroborarTipo (TyBool) xs e1 ys ++ corroborarTipo t xs e2 ys ++ corroborarTipo t xs e3 ys
 
-corroborarTipo t xs  (Let (x,y) e1 e2) ys   | ((obtenerTipoError xs e2 ys) == t) = ((corroborarTipo y xs e1 ys) ++ (corroborarTipo t (sustituirDupla (x,(obtenerTipoError xs e2 ys)) xs) e2 ys))
-                                            | otherwise = [Expected t (obtenerTipoError (sustituirDupla (x,(obtenerTipoError xs e2 ys)) xs) e2 ys)]
+corroborarTipo TyBool xs (IntLit x) ys = [Expected TyBool TyInt]
+
 corroborarTipo t xs  (App name ws) ys | ((getTipoFuncionPorNombre ys name) == t) = checkNameParameterApp (App name ws) ys ++ verificarParametrosSegunFirma (getTiposFuncionPorNombre ys name) ws xs ys
                                       | otherwise = [Expected t (getTipoFuncionPorNombre ys name)] ++ checkNameParameterApp (App name ws) ys  ++ verificarParametrosSegunFirma (getTiposFuncionPorNombre ys name) ws xs ys
+
+corroborarTipo TyBool xs (BoolLit x) ys = []
+
+corroborarTipo t xs  (Let (x,y) e1 e2) ys   | ((obtenerTipoError xs e2 ys) == t) = ((corroborarTipo y xs e1 ys) ++ (corroborarTipo t (sustituirDupla (x,(obtenerTipoError xs e2 ys)) xs) e2 ys))
+                                            | otherwise = [Expected t (obtenerTipoError (sustituirDupla (x,(obtenerTipoError xs e2 ys)) xs) e2 ys)]
 
 
 -------------------------------------------------------------------------------------------------------
@@ -213,9 +216,8 @@ parametrosFunDef (x:xs) name
 parametrosFunDef [] _ = 0
 
 existeFunDef :: Defs -> String -> Bool
-existeFunDef (x:xs) name
-  | obtenerNombre x == name = True
-  | otherwise = existeFunDef xs name
+existeFunDef (x:xs) name | (obtenerNombre x == name) = True
+                         | otherwise = existeFunDef xs name
 existeFunDef [] _ = False
 
 obtenerAmbiente::FunDef -> [(Name,Type)]
@@ -284,3 +286,9 @@ obtenerTipoVariable::Name->[(Name,Type)] -> Type
 obtenerTipoVariable x (y:ys) | x == (obtenerName y) = obtenerType y
                              | otherwise = obtenerTipoVariable x ys
 obtenerTipoVariable x [] = TyBool                
+
+consultarVariableAmbiente::Name->[(Name,Type)] -> Bool
+
+consultarVariableAmbiente x (y:ys) | x == (obtenerName y) = True
+                             | otherwise = consultarVariableAmbiente x ys
+consultarVariableAmbiente x [] = False           

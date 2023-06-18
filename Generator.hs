@@ -21,20 +21,20 @@ import Data.List
 -- CODE GENERATOR
 
 genProgram :: Program -> String
-genProgram (Program defs main) = "#include <stdio.h>"++  "\n" ++ convertirDefs defs ++ "\n" ++ convertirMain main
+genProgram (Program defs main) = "#include <stdio.h>"++  "\n" ++ convertirDefs defs ++ convertirMain main
 
 
 
 
 
 convertirDefs :: Defs -> String
-convertirDefs (x:xs) = convertirFuncion x xs ++ convertirDefs xs
+convertirDefs (x:xs) = convertirFuncion x xs ++ "\n" ++ convertirDefs xs
 convertirDefs [] = ""
 
 -- Let, main y funciones precisan return 
 
 convertirFuncion :: FunDef -> Defs -> String 
-convertirFuncion (FunDef(a, x) ys e) defs = "int "++ convertirIdentificador a ++ "(" ++ separarConComas ys ++ ")" ++ "{\n" ++ verificarLet e 0 ++ "return(" ++ convertirExpr e 0 ++"); };\n"
+convertirFuncion (FunDef(a, x) ys e) defs = "int "++ convertirIdentificador a ++ "(" ++ separarConComas ys ++ ")" ++ "{\n" ++ verificarLet e 0 ++ "return (" ++ convertirExpr e 0 ++"); };"
 
 
 verificarLet :: Expr -> Integer -> String
@@ -47,7 +47,7 @@ verificarLet (Let (x,y) e1 e2) c = convertirLet (Let (x,y) e1 e2) c
 verificarLet (App n vs) c = intercalate "\n" (verificarEnApp vs c)
 
 convertirLet :: Expr -> Integer -> String
-convertirLet (Let (x,y) e1 e2) c =  "int "++ "_let" ++ show c  ++ "(int"++  convertirIdentificador x ++ ")" ++ "{"++  verificarLet e1 (c+1) ++ "\n"++ "return (" ++ convertirExpr e2 (c+1) ++ "); };\n"
+convertirLet (Let (x,y) e1 e2) c =  "int "++ "_let" ++ show c  ++ "(int "++  convertirIdentificador x ++ ")" ++ "{"++  verificarLet e1 (c+1) ++ "\n"++ "return (" ++ convertirExpr e2 (c+1) ++ "); };\n"
 convertirLet _ _ = ""
 
 
@@ -55,19 +55,19 @@ convertirExpr :: Expr -> Integer -> String
 convertirExpr (BoolLit x) c = convertirBool (BoolLit x)
 convertirExpr (IntLit x) c =  show x
 convertirExpr (Var name) c = convertirIdentificador name
-convertirExpr (Infix Eq e1 e2) c = (convertirExpr e1 c ++ "==" ++ convertirExpr e2 c)
-convertirExpr (Infix NEq e1 e2) c = (convertirExpr e1 c ++ "!=" ++ convertirExpr e2 c)
-convertirExpr (Infix GTh e1 e2) c = (convertirExpr e1 c ++ ">" ++ convertirExpr e2 c)
-convertirExpr (Infix LTh e1 e2) c = (convertirExpr e1 c ++ "<" ++ convertirExpr e2 c)
-convertirExpr (Infix GEq e1 e2) c = (convertirExpr e1 c ++ ">=" ++ convertirExpr e2 c)
-convertirExpr (Infix LEq e1 e2) c = (convertirExpr e1 c ++ "<=" ++ convertirExpr e2 c)
-convertirExpr (Infix Add e1 e2) c = (convertirExpr e1 c ++ "+" ++ convertirExpr e2 c)
-convertirExpr (Infix Sub e1 e2) c = (convertirExpr e1 c ++ "-" ++ convertirExpr e2 c)
-convertirExpr (Infix Mult e1 e2) c = (convertirExpr e1 c ++ "*" ++ convertirExpr e2 c)
-convertirExpr (Infix Div e1 e2) c = (convertirExpr e1 c ++ "/" ++ convertirExpr e2 c)
-convertirExpr (If e1 e2 e3) c = "If" ++ convertirExpr e1 c ++ " {\n" ++ convertirExpr e2 c ++ "} else {\n" ++ convertirExpr e3 c ++ "};"
+convertirExpr (Infix Eq e1 e2) c ="(" ++ (convertirExpr e1 c ++ " == " ++ convertirExpr e2 c) ++ ")"
+convertirExpr (Infix NEq e1 e2) c = "(" ++ (convertirExpr e1 c ++ " != " ++ convertirExpr e2 c) ++ ")"
+convertirExpr (Infix GTh e1 e2) c = "(" ++ (convertirExpr e1 c ++ " > " ++ convertirExpr e2 c) ++ ")"
+convertirExpr (Infix LTh e1 e2) c = "(" ++ (convertirExpr e1 c ++ " < " ++ convertirExpr e2 c) ++ ")"
+convertirExpr (Infix GEq e1 e2) c = "(" ++ (convertirExpr e1 c ++ " >= " ++ convertirExpr e2 c) ++ ")"
+convertirExpr (Infix LEq e1 e2) c = "(" ++ (convertirExpr e1 c ++ " <= " ++ convertirExpr e2 c) ++ ")"
+convertirExpr (Infix Add e1 e2) c = "(" ++ (convertirExpr e1 c ++ " + " ++ convertirExpr e2 c) ++ ")"
+convertirExpr (Infix Sub e1 e2) c = "(" ++ (convertirExpr e1 c ++ " - " ++ convertirExpr e2 c) ++ ")"
+convertirExpr (Infix Mult e1 e2) c = "(" ++ (convertirExpr e1 c ++ " * " ++ convertirExpr e2 c) ++ ")"
+convertirExpr (Infix Div e1 e2) c = "(" ++ (convertirExpr e1 c ++ " / " ++ convertirExpr e2 c) ++ ")"
+convertirExpr (If e1 e2 e3) c = (convertirExpr e1 c) ++ "?" ++ (convertirExpr e2 c) ++ ":" ++ (convertirExpr e3 c)
 convertirExpr (Let (x,y) e1 e2) c = "_let" ++ (show c) ++ "(" ++  (convertirExpr e1 (c+1)) ++ ")"
-convertirExpr (App n vs) c = n ++ "(" ++ separarListaString (convertirEnApp vs c) ++ ")"
+convertirExpr (App n vs) c = convertirIdentificador n ++ "(" ++ separarListaString (convertirEnApp vs c) ++ ")"
 
 convertirEnApp :: [Expr] -> Integer -> [String]
 convertirEnApp (v:vs) c = [convertirExpr v c] ++ convertirEnApp vs c
@@ -75,22 +75,22 @@ convertirEnApp [] _ = []
 
 
 convertirMain :: Expr -> String
-convertirMain main = "int main {"
- ++   verificarLet main 0  ++ "printf" ++ "(%d ," ++ convertirExpr main 0 ++ "); }"
+convertirMain main = "int main() {\n" ++ verificarLet main 0  ++ "printf(\"%d\\n\"," ++ convertirExpr main 0 ++ "); }"
 
 
 -------------------REVISAR PASAJE DE CONTADORES EN LETS------------------------
 
 ------------------Auxiliares--------------------------
 verificarEnApp :: [Expr] -> Integer -> [String]
-verificarEnApp (v:vs) c = [verificarLet v c] ++ verificarEnApp vs c
+verificarEnApp (v:vs) c | (verificarLet v c == "") = verificarEnApp vs c
+                        | otherwise = [verificarLet v c] ++ verificarEnApp vs c
 verificarEnApp [] _ = []
 
 separarListaString :: [String] -> String
 separarListaString xs = intercalate "," xs
 
 separarConComas :: [String] -> String
-separarConComas xs = intercalate ", " (map (\x -> "int _" ++ x) xs)
+separarConComas xs = intercalate "," (map (\x -> "int _" ++ x) xs)
 
 convertirIdentificador :: Name -> String
 convertirIdentificador name = "_" ++ name
