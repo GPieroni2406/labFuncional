@@ -1,11 +1,9 @@
 #include <stdio.h>
-int _"foo"("x","y"){int _let0(int_"x"){
-
-return (_"x"); };int _let0(int_"y"){
-
-return (_"y"); };return(_let0(_"y")+_let0(_"x"+_"y")); };
-int main {
-
-
-printf(%d
- ,"foo"(2,4)); }
+int _foo(int _x,int _y){
+int _let0(int _x){
+return (_x); };
+int _let1(int _y){
+return (_y); };
+return ((_let0(_y) + _let1((_x + _y)))); };
+int main() {
+printf("%d\n",_foo(2,4)); }

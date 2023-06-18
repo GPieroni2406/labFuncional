@@ -55,12 +55,12 @@ convertirExpr :: Expr -> Integer -> String
 convertirExpr (BoolLit x) c = convertirBool (BoolLit x)
 convertirExpr (IntLit x) c =  show x
 convertirExpr (Var name) c = convertirIdentificador name
-convertirExpr (Infix Eq e1 e2) c ="(" ++ (convertirExpr e1 c ++ " == " ++ convertirExpr e2 c) ++ ")"
-convertirExpr (Infix NEq e1 e2) c = "(" ++ (convertirExpr e1 c ++ " != " ++ convertirExpr e2 c) ++ ")"
-convertirExpr (Infix GTh e1 e2) c = "(" ++ (convertirExpr e1 c ++ " > " ++ convertirExpr e2 c) ++ ")"
-convertirExpr (Infix LTh e1 e2) c = "(" ++ (convertirExpr e1 c ++ " < " ++ convertirExpr e2 c) ++ ")"
-convertirExpr (Infix GEq e1 e2) c = "(" ++ (convertirExpr e1 c ++ " >= " ++ convertirExpr e2 c) ++ ")"
-convertirExpr (Infix LEq e1 e2) c = "(" ++ (convertirExpr e1 c ++ " <= " ++ convertirExpr e2 c) ++ ")"
+convertirExpr (Infix Eq e1 e2) c ="(" ++ (convertirExpr e1 c ++ "==" ++ convertirExpr e2 c) ++ ")"
+convertirExpr (Infix NEq e1 e2) c = "(" ++ (convertirExpr e1 c ++ "!=" ++ convertirExpr e2 c) ++ ")"
+convertirExpr (Infix GTh e1 e2) c = "(" ++ (convertirExpr e1 c ++ ">" ++ convertirExpr e2 c) ++ ")"
+convertirExpr (Infix LTh e1 e2) c = "(" ++ (convertirExpr e1 c ++ "<" ++ convertirExpr e2 c) ++ ")"
+convertirExpr (Infix GEq e1 e2) c = "(" ++ (convertirExpr e1 c ++ ">=" ++ convertirExpr e2 c) ++ ")"
+convertirExpr (Infix LEq e1 e2) c = "(" ++ (convertirExpr e1 c ++ "<=" ++ convertirExpr e2 c) ++ ")"
 convertirExpr (Infix Add e1 e2) c = "(" ++ (convertirExpr e1 c ++ " + " ++ convertirExpr e2 c) ++ ")"
 convertirExpr (Infix Sub e1 e2) c = "(" ++ (convertirExpr e1 c ++ " - " ++ convertirExpr e2 c) ++ ")"
 convertirExpr (Infix Mult e1 e2) c = "(" ++ (convertirExpr e1 c ++ " * " ++ convertirExpr e2 c) ++ ")"
