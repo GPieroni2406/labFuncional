@@ -151,7 +151,7 @@ checkTypeMain xs (Infix o e1 e2) | o `elem` [Eq,NEq,GEq,LEq,GTh,LTh] = corrobora
                                  | otherwise = corroborarTipo (TyInt) [] e1 xs ++ corroborarTipo (TyInt) [] e2 xs
 checkTypeMain xs (App n vs) = corroborarTipo (getTipoFuncionPorNombre xs n) [] (App n vs) xs
 checkTypeMain xs (If e1 e2 e3) = corroborarTipo TyBool [] e1 xs ++ corroborarTipo (obtenerTipoError [] e2 xs) [] e2 xs ++ corroborarTipo (obtenerTipoError [] e2 xs) [] e3 xs
-checkTypeMain xs (Let (x,y) e1 e2) = corroborarTipo y [] e1 xs ++ corroborarTipo (obtenerTipoError [] e2 xs) [] e1 xs
+checkTypeMain xs (Let (x,y) e1 e2) = corroborarTipo y [] e1 xs ++ corroborarTipo (obtenerTipoError (sustituirDupla (x,y) []) e2 xs) [(x,y)] e2 xs
 checkTypeMain xs (Var name) = []
 
 corroborarTipo :: Type -> [(Name,Type)] -> Expr -> Defs -> [Error]
@@ -185,8 +185,8 @@ corroborarTipo t xs  (App name ws) ys | ((getTipoFuncionPorNombre ys name) == t)
 
 corroborarTipo TyBool xs (BoolLit x) ys = []
 
-corroborarTipo t xs  (Let (x,y) e1 e2) ys   | ((obtenerTipoError xs e2 ys) == t) = ((corroborarTipo y xs e1 ys) ++ (corroborarTipo t (sustituirDupla (x,(obtenerTipoError xs e2 ys)) xs) e2 ys))
-                                            | otherwise = [Expected t (obtenerTipoError (sustituirDupla (x,(obtenerTipoError xs e2 ys)) xs) e2 ys)]
+corroborarTipo t xs  (Let (x,y) e1 e2) ys   | ((obtenerTipoError (sustituirDupla (x,y) xs) e2 ys) == t) = ((corroborarTipo y xs e1 ys) ++ (corroborarTipo t (sustituirDupla (x,y) xs) e2 ys))
+                                            | otherwise = [Expected t (obtenerTipoError (sustituirDupla (x,y) xs) e2 ys)]
 
 
 -------------------------------------------------------------------------------------------------------
@@ -250,8 +250,10 @@ obtenerTipoOperador o | o `elem` [Add,Sub,Mult,Div] = TyInt
                       | otherwise = TyBool
 
 sustituirDupla :: (Name, Type) -> [(Name, Type)] -> [(Name, Type)]
-sustituirDupla _ [] = []
-sustituirDupla (n,t) (x:xs) = map (\x -> if obtenerName x == n then (n,t) else x) (x:xs)
+sustituirDupla (n,t) (x:xs)
+  | elem (n,t) (map (\x -> if obtenerName x == n then (n,t) else x) (x:xs)) = map (\x -> if obtenerName x == n then (n,t) else x) (x:xs)
+  | otherwise = (n,t) : map (\x -> if obtenerName x == n then (n,t) else x) (x:xs)
+sustituirDupla (n,t) [] = [(n,t)]
 
 obtenerTipoError :: [(Name,Type)]-> Expr -> Defs -> Type
 obtenerTipoError xs (Var n) zs = obtenerTipoVariable n xs
@@ -282,11 +284,15 @@ obtenerName (a,b) = a
 obtenerType::(Name,Type) -> Type
 obtenerType (a,b) = b
 
-obtenerTipoVariable::Name->[(Name,Type)] -> Type
-obtenerTipoVariable x (y:ys) | x == (obtenerName y) = obtenerType y
-                             | otherwise = obtenerTipoVariable x ys
-obtenerTipoVariable x [] = TyBool                
-
+--obtenerTipoVariable::Name->[(Name,Type)] -> Type
+--obtenerTipoVariable x (y:ys) | x == (obtenerName y) = obtenerType y
+--                             | otherwise = obtenerTipoVariable x ys
+--obtenerTipoVariable x [] =                 
+obtenerTipoVariable :: Name -> [(Name, Type)] -> Type
+obtenerTipoVariable x xs =
+  case lookup x xs of
+    Just t -> t
+    Nothing -> error "La variable no se encontró en la lista."
 consultarVariableAmbiente::Name->[(Name,Type)] -> Bool
 
 consultarVariableAmbiente x (y:ys) | x == (obtenerName y) = True
