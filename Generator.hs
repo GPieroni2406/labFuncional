@@ -38,17 +38,24 @@ convertirFuncion (FunDef(a, x) ys e) defs = "int "++ convertirIdentificador a ++
 
 
 verificarLet :: Expr -> Integer -> String
-verificarLet (Var x) c = ""
-verificarLet (BoolLit x) c = ""
-verificarLet (IntLit x) c = ""
-verificarLet (Infix o e1 e2) c = verificarLet e1 c ++ verificarLet e2 c
-verificarLet (If e1 e2 e3) c = verificarLet e1 c ++ verificarLet e2 c ++ verificarLet e3 c
-verificarLet (Let (x,y) e1 e2) c = convertirLet (Let (x,y) e1 e2) c
+verificarLet (Var x) _ = ""
+verificarLet (BoolLit x) _ = ""
+verificarLet (IntLit x) _ = ""
+verificarLet (Infix o e1 e2) c = verificarLet e1 c ++ verificarLet e2 (obtenerContador (convertirLet e1 c))
+verificarLet (If e1 e2 e3) c = verificarLet e1 c ++ verificarLet e2 (obtenerContador (convertirLet e1 c)) ++ verificarLet e3 (obtenerContador (convertirLet e2 (obtenerContador (convertirLet e1 c))))
+verificarLet (Let (x,y) e1 e2) c = obtenerString (convertirLet (Let (x,y) e1 e2) c)
 verificarLet (App n vs) c = intercalate "\n" (verificarEnApp vs c)
 
-convertirLet :: Expr -> Integer -> String
-convertirLet (Let (x,y) e1 e2) c =  "int "++ "_let" ++ show c  ++ "(int "++  convertirIdentificador x ++ ")" ++ "{"++  verificarLet e1 (c+1) ++ "\n"++ "return (" ++ convertirExpr e2 (c+1) ++ "); };\n"
-convertirLet _ _ = ""
+convertirLet :: Expr -> Integer -> (String,Integer)
+convertirLet (Let (x,y) e1 e2) c = ("int "++ "_let" ++ show c  ++ "(int "++  convertirIdentificador x ++ ")" ++ "{"++  verificarLet e1 (c+1) ++ "\n"++ "return (" ++ convertirExpr e2 (c+1) ++ "); };\n" , obtenerContador (convertirLet e1 (c+1)) + (obtenerContador (convertirLet e2 (obtenerContador (convertirLet e1 c)))))
+convertirLet _ c = ("", c)
+
+
+obtenerContador :: (String,Integer) -> Integer
+obtenerContador (_,c) = c
+
+obtenerString :: (String,Integer) -> String 
+obtenerString (x,_) = x
 
 
 convertirExpr :: Expr -> Integer -> String 
@@ -72,6 +79,7 @@ convertirExpr (App n vs) c = convertirIdentificador n ++ "(" ++ separarListaStri
 convertirEnApp :: [Expr] -> Integer -> [String]
 convertirEnApp (v:vs) c = [convertirExpr v c] ++ convertirEnApp vs c
 convertirEnApp [] _ = []
+
 
 
 convertirMain :: Expr -> String
