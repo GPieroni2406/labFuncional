@@ -43,13 +43,31 @@ verificarLet (BoolLit x) _ = ""
 verificarLet (IntLit x) _ = ""
 verificarLet (Infix o e1 e2) c = verificarLet e1 c ++ verificarLet e2 (obtenerContador (convertirLet e1 c))
 verificarLet (If e1 e2 e3) c = verificarLet e1 c ++ verificarLet e2 (obtenerContador (convertirLet e1 c)) ++ verificarLet e3 (obtenerContador (convertirLet e2 (obtenerContador (convertirLet e1 c))))
-verificarLet (Let (x,y) e1 e2) c = obtenerString (convertirLet (Let (x,y) e1 e2) c)
+verificarLet (Let (x,y) e1 e2) c = verificarLet e1 c ++ obtenerString (convertirLet (Let (x,y) e1 e2) (obtenerContador (convertirLet e1 c)))
 verificarLet (App n vs) c = intercalate "\n" (verificarEnApp vs c)
 
 convertirLet :: Expr -> Integer -> (String,Integer)
-convertirLet (Let (x,y) e1 e2) c = ("int "++ "_let" ++ show c  ++ "(int "++  convertirIdentificador x ++ ")" ++ "{"++  verificarLet e1 (c+1) ++ "\n"++ "return (" ++ convertirExpr e2 (c+1) ++ "); };\n" , obtenerContador (convertirLet e1 (c+1)) + (obtenerContador (convertirLet e2 (obtenerContador (convertirLet e1 c)))))
-convertirLet _ c = ("", c)
+convertirLet (Let (x,y) e1 e2) c = ("int "++ "_let" ++ show k  ++ "(int "++  convertirIdentificador x ++ ")" ++ "{\n"++ "return (" ++ convertirExpr e2 c ++ "); };\n" , k)
+                                where 
+                                    k =(obtenerContador (convertirLet e2 c))
+convertirLet (Infix o e1 e2) c = ((obtenerString (convertirLet e1 c)) ++ (obtenerString (convertirLet e2 k)), (obtenerContador (convertirLet e1 c)) + (obtenerContador (convertirLet e2 k)))
+                            where
+                                k = (obtenerContador (convertirLet e1 c))
+convertirLet (If e1 e2 e3) c = ((obtenerString (convertirLet e1 c)) ++ (obtenerString (convertirLet e2 k)) ++ (obtenerString (convertirLet e3 j)) , (obtenerContador (convertirLet e1 c)) + (obtenerContador (convertirLet e2 k)) + (obtenerContador (convertirLet e3 j)))
+                            where
+                                k = (obtenerContador (convertirLet e1 c))
+                                j = (obtenerContador (convertirLet e2 k))
+convertirLet (App n vs) c = (anidar (map fst (recorrerAppLets vs c)), sum (map snd (recorrerAppLets vs c)))
+convertirLet _ c = ("",c)
 
+anidar :: [String] -> String
+anidar (v:vs) = v ++ anidar vs
+anidar [] = ""
+
+
+recorrerAppLets :: [Expr]-> Integer -> [(String,Integer)]
+recorrerAppLets (v:vs) c = [(convertirLet v c)] ++ recorrerAppLets vs (obtenerContador (convertirLet v c))
+recorrerAppLets [] c = [("",c)]
 
 obtenerContador :: (String,Integer) -> Integer
 obtenerContador (_,c) = c
