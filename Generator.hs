@@ -34,7 +34,7 @@ convertirDefs [] = ""
 -- Let, main y funciones precisan return 
 
 convertirFuncion :: FunDef -> Defs -> String 
-convertirFuncion (FunDef(a, x) ys e) defs = "int "++ convertirIdentificador a ++ "(" ++ separarConComas ys ++ ")" ++ "{\n" ++ verificarLet e 0 ++ "return (" ++ convertirExpr e 0 ++"); };"
+convertirFuncion (FunDef(a, x) ys e) defs = "int "++ convertirIdentificador a ++ "(" ++ separarConComas ys ++ ")" ++ "{\n" ++ verificarLet e 0 ++ "return (" ++ convertirExpr e (obtenerContador (convertirLet e 0)-1) ++"); };"
 
 
 verificarLet :: Expr -> Integer -> String
@@ -47,13 +47,13 @@ verificarLet (Let (x,y) e1 e2) c = verificarLet e1 c ++ obtenerString (convertir
 verificarLet (App n vs) c = intercalate "\n" (verificarEnApp vs c)
 
 convertirLet :: Expr -> Integer -> (String,Integer)
-convertirLet (Let (x,y) e1 e2) c = ("int "++ "_let" ++ show k  ++ "(int "++  convertirIdentificador x ++ ")" ++ "{\n"++ "return (" ++ convertirExpr e2 c ++ "); };\n" , k)
+convertirLet (Let (x,y) e1 e2) c = ("int "++ "_let" ++ show k  ++ "(int "++  convertirIdentificador x ++ ")" ++ "{\n"++ verificarLet e2 c ++ "return (" ++ convertirExpr e2 c ++ "); };\n" , k+1)
                                 where 
                                     k =(obtenerContador (convertirLet e2 c))
-convertirLet (Infix o e1 e2) c = ((obtenerString (convertirLet e1 c)) ++ (obtenerString (convertirLet e2 k)), (obtenerContador (convertirLet e1 c)) + (obtenerContador (convertirLet e2 k)))
+convertirLet (Infix o e1 e2) c = ((obtenerString (convertirLet e1 c)) ++ (obtenerString (convertirLet e2 k)), (obtenerContador (convertirLet e2 k)))
                             where
                                 k = (obtenerContador (convertirLet e1 c))
-convertirLet (If e1 e2 e3) c = ((obtenerString (convertirLet e1 c)) ++ (obtenerString (convertirLet e2 k)) ++ (obtenerString (convertirLet e3 j)) , (obtenerContador (convertirLet e1 c)) + (obtenerContador (convertirLet e2 k)) + (obtenerContador (convertirLet e3 j)))
+convertirLet (If e1 e2 e3) c = ((obtenerString (convertirLet e1 c)) ++ (obtenerString (convertirLet e2 k)) ++ (obtenerString (convertirLet e3 j)) ,(obtenerContador (convertirLet e3 j)))
                             where
                                 k = (obtenerContador (convertirLet e1 c))
                                 j = (obtenerContador (convertirLet e2 k))
@@ -80,18 +80,18 @@ convertirExpr :: Expr -> Integer -> String
 convertirExpr (BoolLit x) c = convertirBool (BoolLit x)
 convertirExpr (IntLit x) c =  show x
 convertirExpr (Var name) c = convertirIdentificador name
-convertirExpr (Infix Eq e1 e2) c ="(" ++ (convertirExpr e1 c ++ "==" ++ convertirExpr e2 c) ++ ")"
-convertirExpr (Infix NEq e1 e2) c = "(" ++ (convertirExpr e1 c ++ "!=" ++ convertirExpr e2 c) ++ ")"
-convertirExpr (Infix GTh e1 e2) c = "(" ++ (convertirExpr e1 c ++ ">" ++ convertirExpr e2 c) ++ ")"
-convertirExpr (Infix LTh e1 e2) c = "(" ++ (convertirExpr e1 c ++ "<" ++ convertirExpr e2 c) ++ ")"
-convertirExpr (Infix GEq e1 e2) c = "(" ++ (convertirExpr e1 c ++ ">=" ++ convertirExpr e2 c) ++ ")"
-convertirExpr (Infix LEq e1 e2) c = "(" ++ (convertirExpr e1 c ++ "<=" ++ convertirExpr e2 c) ++ ")"
-convertirExpr (Infix Add e1 e2) c = "(" ++ (convertirExpr e1 c ++ " + " ++ convertirExpr e2 c) ++ ")"
-convertirExpr (Infix Sub e1 e2) c = "(" ++ (convertirExpr e1 c ++ " - " ++ convertirExpr e2 c) ++ ")"
-convertirExpr (Infix Mult e1 e2) c = "(" ++ (convertirExpr e1 c ++ " * " ++ convertirExpr e2 c) ++ ")"
-convertirExpr (Infix Div e1 e2) c = "(" ++ (convertirExpr e1 c ++ " / " ++ convertirExpr e2 c) ++ ")"
-convertirExpr (If e1 e2 e3) c = (convertirExpr e1 c) ++ "?" ++ (convertirExpr e2 c) ++ ":" ++ (convertirExpr e3 c)
-convertirExpr (Let (x,y) e1 e2) c = "_let" ++ (show c) ++ "(" ++  (convertirExpr e1 (c+1)) ++ ")"
+convertirExpr (Infix Eq e1 e2) c ="(" ++ (convertirExpr e1 c ++ "==" ++ convertirExpr e2 (obtenerContador (convertirLet e1 c))) ++ ")"
+convertirExpr (Infix NEq e1 e2) c = "(" ++ (convertirExpr e1 c ++ "!=" ++ convertirExpr e2 (obtenerContador (convertirLet e1 c))) ++ ")"
+convertirExpr (Infix GTh e1 e2) c = "(" ++ (convertirExpr e1 c ++ ">" ++ convertirExpr e2 (obtenerContador (convertirLet e1 c))) ++ ")"
+convertirExpr (Infix LTh e1 e2) c = "(" ++ (convertirExpr e1 c ++ "<" ++ convertirExpr e2 (obtenerContador (convertirLet e1 c))) ++ ")"
+convertirExpr (Infix GEq e1 e2) c = "(" ++ (convertirExpr e1 c ++ ">=" ++ convertirExpr e2 (obtenerContador (convertirLet e1 c))) ++ ")"
+convertirExpr (Infix LEq e1 e2) c = "(" ++ (convertirExpr e1 c ++ "<=" ++ convertirExpr e2 (obtenerContador (convertirLet e1 c))) ++ ")"
+convertirExpr (Infix Add e1 e2) c = "(" ++ (convertirExpr e1 c ++ " + " ++ convertirExpr e2 (obtenerContador (convertirLet e1 c))) ++ ")"
+convertirExpr (Infix Sub e1 e2) c = "(" ++ (convertirExpr e1 c ++ " - " ++ convertirExpr e2 (obtenerContador (convertirLet e1 c))) ++ ")"
+convertirExpr (Infix Mult e1 e2) c = "(" ++ (convertirExpr e1 c ++ " * " ++ convertirExpr e2 (obtenerContador (convertirLet e1 c))) ++ ")"
+convertirExpr (Infix Div e1 e2) c = "(" ++ (convertirExpr e1 c ++ " / " ++ convertirExpr e2 (obtenerContador (convertirLet e1 c))) ++ ")"
+convertirExpr (If e1 e2 e3) c = (convertirExpr e1 c) ++ "?" ++ (convertirExpr e2 (obtenerContador (convertirLet e1 c))) ++ ":" ++ (convertirExpr e3 (obtenerContador (convertirLet e2 (obtenerContador (convertirLet e1 c)))))
+convertirExpr (Let (x,y) e1 e2) c = "_let" ++ (show c) ++ "(" ++  (convertirExpr e1 (obtenerContador (convertirLet e1 c))) ++ ")"
 convertirExpr (App n vs) c = convertirIdentificador n ++ "(" ++ separarListaString (convertirEnApp vs c) ++ ")"
 
 convertirEnApp :: [Expr] -> Integer -> [String]
