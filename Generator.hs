@@ -34,7 +34,7 @@ convertirDefs [] = ""
 -- Let, main y funciones precisan return 
 
 convertirFuncion :: FunDef -> Defs -> String 
-convertirFuncion (FunDef(a, x) ys e) defs = "int "++ convertirIdentificador a ++ "(" ++ separarConComas ys ++ ")" ++ "{\n" ++ verificarLet e 0 ++ "return (" ++ convertirExpr e (obtenerContador (convertirLet e 0)-1) ++"); };"
+convertirFuncion (FunDef(a, x) ys e) defs = "int "++ convertirIdentificador a ++ "(" ++ separarConComas ys ++ ")" ++ "{\n" ++ verificarLet e 0 ++ "return (" ++ convertirExpr e 0 ++"); };"
 
 
 verificarLet :: Expr -> Integer -> String
@@ -91,9 +91,12 @@ convertirExpr (Infix Sub e1 e2) c = "(" ++ (convertirExpr e1 c ++ " - " ++ conve
 convertirExpr (Infix Mult e1 e2) c = "(" ++ (convertirExpr e1 c ++ " * " ++ convertirExpr e2 (obtenerContador (convertirLet e1 c))) ++ ")"
 convertirExpr (Infix Div e1 e2) c = "(" ++ (convertirExpr e1 c ++ " / " ++ convertirExpr e2 (obtenerContador (convertirLet e1 c))) ++ ")"
 convertirExpr (If e1 e2 e3) c = (convertirExpr e1 c) ++ "?" ++ (convertirExpr e2 (obtenerContador (convertirLet e1 c))) ++ ":" ++ (convertirExpr e3 (obtenerContador (convertirLet e2 (obtenerContador (convertirLet e1 c)))))
-convertirExpr (Let (x,y) e1 e2) c = "_let" ++ (show c) ++ "(" ++  (convertirExpr e1 (obtenerContador (convertirLet e1 c))) ++ ")"
+convertirExpr (Let (x,y) e1 e2) c = "_let" ++ (show j) ++ "(" ++  (convertirExpr e1 c) ++ ")"
+                                where 
+                                    k = (obtenerContador (convertirLet e1 c))
+                                    j = (obtenerContador (convertirLet e2 k))
 convertirExpr (App n vs) c = convertirIdentificador n ++ "(" ++ separarListaString (convertirEnApp vs c) ++ ")"
-
+--(obtenerContador (convertirLet e1 c))
 convertirEnApp :: [Expr] -> Integer -> [String]
 convertirEnApp (v:vs) c = [convertirExpr v c] ++ convertirEnApp vs c
 convertirEnApp [] _ = []
