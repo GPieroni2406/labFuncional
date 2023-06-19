@@ -39,7 +39,7 @@ eliminarLetGeneral (Var x) = (Var x)
 eliminarLetGeneral (Infix op e1 e2) = (Infix op (eliminarLetGeneral e1) (eliminarLetGeneral e2)) 
 eliminarLetGeneral (Let (x,y) e1 e2) = subst x (eliminarLetGeneral e1) (Let (x,y) (eliminarLetGeneral e1) (eliminarLetGeneral e2))
 eliminarLetGeneral (App name xs) = ((App name (map eliminarLetGeneral xs)))   
-
+eliminarLetGeneral (If e1 e2 e3)   = (If (eliminarLetGeneral e1) (eliminarLetGeneral e2) (eliminarLetGeneral e3))
 
 subst :: Name -> Expr -> Expr -> Expr
 subst n (BoolLit y) (Var x) | n == x = BoolLit y
