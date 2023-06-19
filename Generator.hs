@@ -96,7 +96,7 @@ convertirExpr (Let (x,y) e1 e2) c = "_let" ++ (show j) ++ "(" ++  (convertirExpr
                                     k = (obtenerContador (convertirLet e1 c))
                                     j = (obtenerContador (convertirLet e2 k))
 convertirExpr (App n vs) c = convertirIdentificador n ++ "(" ++ separarListaString (convertirEnApp vs c) ++ ")"
---(obtenerContador (convertirLet e1 c))
+
 convertirEnApp :: [Expr] -> Integer -> [String]
 convertirEnApp (v:vs) c = [convertirExpr v c] ++ convertirEnApp vs c
 convertirEnApp [] _ = []
@@ -104,7 +104,7 @@ convertirEnApp [] _ = []
 
 
 convertirMain :: Expr -> String
-convertirMain main = "int main() {\n" ++ verificarLet main 0  ++ "printf(\"%d\\n\"," ++ convertirExpr main 0 ++ "); }"
+convertirMain main = "int main() {\n" ++ verificarLet main 0  ++ "printf(\"%d\\n\"," ++ convertirExpr main 0 ++ "); }" ++ "\n"
 
 
 -------------------REVISAR PASAJE DE CONTADORES EN LETS------------------------
