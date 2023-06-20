@@ -41,10 +41,10 @@ instance Show Error where
 checkProgram :: Program -> Checked
 checkProgram (Program xs exp) = if (length (checkFunctionDup [] xs ++ checkParameter xs)) > 0
                                 then Wrong (checkFunctionDup [] xs ++ checkParameter xs)
-                                else if (length (compararVariablesFuncion xs xs ++ verificarFuncionesExistentes xs exp [])) > 0 -- VERIFICAR, CAMBIAR POR UNA FUNCION AUXILIAR QUE NO TENGA DOS DEFS.
-                                     then Wrong (compararVariablesFuncion xs xs ++ verificarFuncionesExistentes xs exp []) -- VERIFICAR, CAMBIAR POR UNA FUNCION AUXILIAR QUE NO TENGA DOS DEFS.
-                                     else if (length (checkTypeTotal xs xs exp)) > 0 -- VERIFICAR, CAMBIAR POR UNA FUNCION AUXILIAR QUE NO TENGA DOS DEFS.
-                                          then Wrong (checkTypeTotal xs xs exp) -- VERIFICAR, CAMBIAR POR UNA FUNCION AUXILIAR QUE NO TENGA DOS DEFS.
+                                else if (length (compararVariablesFuncion xs ++ verificarFuncionesExistentes xs exp [])) > 0 
+                                     then Wrong (compararVariablesFuncion xs ++ verificarFuncionesExistentes xs exp []) 
+                                     else if (length (checkTypeTotal xs exp)) > 0 
+                                          then Wrong (checkTypeTotal xs exp) 
                                           else Ok
 
 
@@ -103,9 +103,9 @@ checkMainAux xs name cantidad | (parametrosFunDef xs name) == cantidad = []
 
 -------2.3-----------------------
 
-compararVariablesFuncion::Defs->Defs->[Error]  -- VERIFICAR, CAMBIAR POR UNA FUNCION AUXILIAR QUE NO TENGA DOS DEFS.
-compararVariablesFuncion (x:xs) ys = compararVariablesExpresion (obtenerParametros x) (obtenerExpresion x) ys ++ compararVariablesFuncion xs ys
-compararVariablesFuncion [] _ = []
+compararVariablesFuncion :: Defs -> [Error]
+compararVariablesFuncion defs = compararVariablesFuncionAux defs defs
+
 
 compararVariablesExpresion :: [String]->Expr->Defs->[Error]
 compararVariablesExpresion ys (Var x) zs | elem x ys = []
@@ -141,8 +141,8 @@ desglosarExpresiones xs [] _ = []
 -------------------------------------------------------------------------------------------------------
 
 -------------------------------------2.4----------------------------------
-checkTypeTotal::Defs-> Defs ->Expr->[Error] -- VERIFICAR, CAMBIAR POR UNA FUNCION AUXILIAR QUE NO TENGA DOS DEFS.
-checkTypeTotal xs ys main = checkTypeDefinicion xs ys ++ checkTypeMain xs main
+checkTypeTotal :: Defs -> Expr -> [Error]
+checkTypeTotal defs main = checkTypeTotalAux defs defs main
 
 checkTypeMain:: Defs -> Expr ->[Error]
 checkTypeMain xs (BoolLit x) = []
@@ -194,6 +194,13 @@ corroborarTipo t xs  (Let (x,y) e1 e2) ys   | ((obtenerTipoError (sustituirDupla
 
 
 -----------------------------------------AUXILIARES---------------------------------------------
+compararVariablesFuncionAux :: Defs -> Defs -> [Error]
+compararVariablesFuncionAux (x:xs) ys = compararVariablesExpresion (obtenerParametros x) (obtenerExpresion x) ys ++ compararVariablesFuncionAux xs ys
+compararVariablesFuncionAux [] _ = []
+
+
+checkTypeTotalAux :: Defs -> Defs -> Expr -> [Error]
+checkTypeTotalAux xs ys main = checkTypeDefinicion xs ++ checkTypeMain xs main
 
 obtenerNombre::FunDef -> String
 obtenerNombre (FunDef (n, x) ys e) = n
@@ -224,12 +231,15 @@ existeFunDef [] _ = False
 obtenerAmbiente::FunDef -> [(Name,Type)]
 obtenerAmbiente  (FunDef (n,(Sig es s)) vs e) = zip vs es
 
-checkTypeDefinicion :: Defs -> Defs -> [Error] -- VERIFICAR, CAMBIAR POR UNA FUNCION AUXILIAR QUE NO TENGA DOS DEFS.
-checkTypeDefinicion (x:xs) ys
-  | length errores > 0 = errores ++ checkTypeDefinicion xs ys
-  | otherwise = corroborarTipo (obtenerTipoFuncion x) (obtenerAmbiente x) (obtenerExpresion x) ys ++ checkTypeDefinicion xs ys
+checkTypeDefinicion :: Defs -> [Error]
+checkTypeDefinicion defs = checkTypeDefinicionAux defs defs
+
+checkTypeDefinicionAux :: Defs -> Defs -> [Error]
+checkTypeDefinicionAux (x:xs) ys
+  | length errores > 0 = errores ++ checkTypeDefinicionAux xs ys
+  | otherwise = corroborarTipo (obtenerTipoFuncion x) (obtenerAmbiente x) (obtenerExpresion x) ys ++ checkTypeDefinicionAux xs ys
   where errores = checkNameParameterFunction x
-checkTypeDefinicion [] ys = []
+checkTypeDefinicionAux [] ys = []
 
 
 

@@ -59,8 +59,7 @@ subst n (IntLit z) (Let (x, y) e1 e2) | x == n = subst n (subst n (IntLit z) e1)
                                       | otherwise = Let (x, y) (subst n (IntLit z) e1) (subst n (IntLit z) e2)
 
 subst n e0 (App name xs) = App name (map (subst n e0) xs)
-subst n e0 e = e  -- Catch-all pattern for any other expression
-
+subst n e0 e = e  
 recorrerAppSubst :: Name -> Expr -> [Expr] -> [Expr]
 recorrerAppSubst n e0 [] = []
 recorrerAppSubst n e0 (x:xs) = [subst n e0 x] ++ recorrerAppSubst n e0 xs
