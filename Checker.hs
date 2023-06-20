@@ -41,10 +41,10 @@ instance Show Error where
 checkProgram :: Program -> Checked
 checkProgram (Program xs exp) = if (length (checkFunctionDup [] xs ++ checkParameter xs)) > 0
                                 then Wrong (checkFunctionDup [] xs ++ checkParameter xs)
-                                else if (length (compararVariablesFuncion xs ++ verificarFuncionesExistentes xs exp [])) > 0
-                                     then Wrong (compararVariablesFuncion xs ++ verificarFuncionesExistentes xs exp [])
-                                     else if (length (checkTypeTotal xs exp)) > 0
-                                          then Wrong (checkTypeTotal xs exp)
+                                else if (length (compararVariablesFuncion xs xs ++ verificarFuncionesExistentes xs exp [])) > 0 -- VERIFICAR, CAMBIAR POR UNA FUNCION AUXILIAR QUE NO TENGA DOS DEFS.
+                                     then Wrong (compararVariablesFuncion xs xs ++ verificarFuncionesExistentes xs exp []) -- VERIFICAR, CAMBIAR POR UNA FUNCION AUXILIAR QUE NO TENGA DOS DEFS.
+                                     else if (length (checkTypeTotal xs xs exp)) > 0 -- VERIFICAR, CAMBIAR POR UNA FUNCION AUXILIAR QUE NO TENGA DOS DEFS.
+                                          then Wrong (checkTypeTotal xs xs exp) -- VERIFICAR, CAMBIAR POR UNA FUNCION AUXILIAR QUE NO TENGA DOS DEFS.
                                           else Ok
 
 
@@ -103,9 +103,9 @@ checkMainAux xs name cantidad | (parametrosFunDef xs name) == cantidad = []
 
 -------2.3-----------------------
 
-compararVariablesFuncion::Defs->[Error]
-compararVariablesFuncion (x:xs) = compararVariablesExpresion (obtenerParametros x) (obtenerExpresion x) (x:xs) ++ compararVariablesFuncion xs
-compararVariablesFuncion [] = []
+compararVariablesFuncion::Defs->Defs->[Error]  -- VERIFICAR, CAMBIAR POR UNA FUNCION AUXILIAR QUE NO TENGA DOS DEFS.
+compararVariablesFuncion (x:xs) ys = compararVariablesExpresion (obtenerParametros x) (obtenerExpresion x) ys ++ compararVariablesFuncion xs ys
+compararVariablesFuncion [] _ = []
 
 compararVariablesExpresion :: [String]->Expr->Defs->[Error]
 compararVariablesExpresion ys (Var x) zs | elem x ys = []
@@ -113,7 +113,7 @@ compararVariablesExpresion ys (Var x) zs | elem x ys = []
 compararVariablesExpresion ys (Infix op e1 e2) zs = compararVariablesExpresion ys e1 zs ++ compararVariablesExpresion ys e2 zs
 compararVariablesExpresion ys (If e1 e2 e3) zs = compararVariablesExpresion ys e1 zs ++ compararVariablesExpresion ys e2 zs ++ compararVariablesExpresion ys e3 zs
 compararVariablesExpresion ys (Let (x,y) e1 e2) zs | (elem x ys) = compararVariablesExpresion ys e1 zs ++ compararVariablesExpresion ys e2 zs
-                                                   | otherwise = [Undefined x] ++ compararVariablesExpresion ys e1 zs ++ compararVariablesExpresion ys e2 zs
+                                                   | otherwise = compararVariablesExpresion (x:ys) e1 zs ++ compararVariablesExpresion (x:ys) e2 zs
 compararVariablesExpresion ys (App name xs) zs | (existeFunDef zs name) =  recorrerListaExpresion ys xs zs
                                                | otherwise = [Undefined name] ++ recorrerListaExpresion ys xs zs
 compararVariablesExpresion ys _ zs = [] 
@@ -141,8 +141,8 @@ desglosarExpresiones xs [] _ = []
 -------------------------------------------------------------------------------------------------------
 
 -------------------------------------2.4----------------------------------
-checkTypeTotal::Defs->Expr->[Error]
-checkTypeTotal xs main = checkTypeDefinicion xs ++ checkTypeMain xs main
+checkTypeTotal::Defs-> Defs ->Expr->[Error] -- VERIFICAR, CAMBIAR POR UNA FUNCION AUXILIAR QUE NO TENGA DOS DEFS.
+checkTypeTotal xs ys main = checkTypeDefinicion xs ys ++ checkTypeMain xs main
 
 checkTypeMain:: Defs -> Expr ->[Error]
 checkTypeMain xs (BoolLit x) = []
@@ -176,7 +176,8 @@ corroborarTipo t xs (Infix LEq e1 e2) ys| (TyBool == t) = corroborarTipo (obtene
                                         | otherwise = [Expected t TyBool] ++ corroborarTipo (obtenerTipoError xs e1 ys) xs e1 ys ++  corroborarTipo (obtenerTipoError xs e1 ys) xs e2 ys
 corroborarTipo t xs (Infix o e1 e2) ys | ((obtenerTipoOperador o) == t) = corroborarTipo (obtenerTipoOperador o) xs e1 ys ++ corroborarTipo (obtenerTipoOperador o) xs e2 ys
                                         | otherwise = [Expected t (obtenerTipoOperador o)]
-corroborarTipo t xs  (If e1 e2 e3) ys = corroborarTipo (TyBool) xs e1 ys ++ corroborarTipo t xs e2 ys ++ corroborarTipo t xs e3 ys
+corroborarTipo t xs  (If e1 e2 e3) ys = corroborarTipo (TyBool) xs e1 ys ++ corroborarTipo t xs e2 ys ++ corroborarTipo (obtenerTipoError xs e2 ys) xs e3 ys
+--corroborarTipo t xs  (If e1 e2 e3) ys = corroborarTipo t xs e2 ys ++ corroborarTipo (obtenerTipoError xs e2 ys) xs e3 ys ++ corroborarTipo (TyBool) xs e1 ys 
 
 corroborarTipo TyBool xs (IntLit x) ys = [Expected TyBool TyInt]
 
@@ -185,8 +186,8 @@ corroborarTipo t xs  (App name ws) ys | ((getTipoFuncionPorNombre ys name) == t)
 
 corroborarTipo TyBool xs (BoolLit x) ys = []
 
-corroborarTipo t xs  (Let (x,y) e1 e2) ys   | ((obtenerTipoError (sustituirDupla (x,y) xs) e2 ys) == t) = ((corroborarTipo y xs e1 ys) ++ (corroborarTipo t (sustituirDupla (x,y) xs) e2 ys))
-                                            | otherwise = [Expected t (obtenerTipoError (sustituirDupla (x,y) xs) e2 ys)]
+corroborarTipo t xs  (Let (x,y) e1 e2) ys   | ((obtenerTipoError (sustituirDupla (x,y) xs) e2 ys) == t) = ((corroborarTipo y xs e1 ys) ++ (corroborarTipo (obtenerTipoError (sustituirDupla (x,y) xs) e2 ys) (sustituirDupla (x,y) xs) e2 ys))
+                                            | otherwise = [Expected t (obtenerTipoError (sustituirDupla (x,y) xs) e2 ys)] ++ ((corroborarTipo y xs e1 ys) ++ (corroborarTipo (obtenerTipoError (sustituirDupla (x,y) xs) e2 ys) (sustituirDupla (x,y) xs) e2 ys))
 
 
 -------------------------------------------------------------------------------------------------------
@@ -223,12 +224,12 @@ existeFunDef [] _ = False
 obtenerAmbiente::FunDef -> [(Name,Type)]
 obtenerAmbiente  (FunDef (n,(Sig es s)) vs e) = zip vs es
 
-checkTypeDefinicion :: Defs -> [Error]
-checkTypeDefinicion (x:xs)
-  | length errores > 0 = errores ++ checkTypeDefinicion xs
-  | otherwise = corroborarTipo (obtenerTipoFuncion x) (obtenerAmbiente x) (obtenerExpresion x) (x:xs) ++ checkTypeDefinicion xs
+checkTypeDefinicion :: Defs -> Defs -> [Error] -- VERIFICAR, CAMBIAR POR UNA FUNCION AUXILIAR QUE NO TENGA DOS DEFS.
+checkTypeDefinicion (x:xs) ys
+  | length errores > 0 = errores ++ checkTypeDefinicion xs ys
+  | otherwise = corroborarTipo (obtenerTipoFuncion x) (obtenerAmbiente x) (obtenerExpresion x) ys ++ checkTypeDefinicion xs ys
   where errores = checkNameParameterFunction x
-checkTypeDefinicion [] = []
+checkTypeDefinicion [] ys = []
 
 
 
@@ -236,8 +237,6 @@ verificarParametrosSegunFirma:: [Type] -> [Expr] ->[(Name,Type)]-> Defs -> [Erro
 verificarParametrosSegunFirma (x:xs) (y:ys) zs ws = (corroborarTipo x zs y ws) ++ (verificarParametrosSegunFirma xs ys zs ws)
 verificarParametrosSegunFirma _ [] zs ws = []
 verificarParametrosSegunFirma [] _ zs ws = []
---verificarParametrosSegunFirma [] (y:ys) _ _ = []
---verificarParametrosSegunFirma (y:ys) [] _ _ = []
 
 
 getTiposFuncionPorNombre :: Defs -> Name -> [Type]
@@ -259,11 +258,12 @@ obtenerTipoError :: [(Name,Type)]-> Expr -> Defs -> Type
 obtenerTipoError xs (Var n) zs = obtenerTipoVariable n xs
 obtenerTipoError xs (BoolLit _) zs = TyBool
 obtenerTipoError xs (IntLit _) zs = TyInt
-obtenerTipoError xs (Infix o e1 e2) zs | o `elem` [Eq, NEq] = obtenerTipoError xs e1 zs
-                                       | otherwise = obtenerTipoOperador o
+obtenerTipoError xs (Infix o e1 e2) zs | elem o [Eq, NEq,GTh,LEq,GEq,LTh] = TyBool
+                                       | otherwise = TyInt
 obtenerTipoError xs (If e1 e2 e3) zs = obtenerTipoError xs e2 zs
 obtenerTipoError xs (App n ys) zs = getTipoFuncionPorNombre zs n
-obtenerTipoError xs (Let (n, t) e1 e2) zs = obtenerTipoError xs e2 zs
+obtenerTipoError xs (Let (n, t) e1 e2) zs = obtenerTipoError (sustituirDupla (n,t) xs) e2 zs
+
 
 obtenerTipoFuncion :: FunDef->Type
 obtenerTipoFuncion (FunDef t ys e) = obtenerTipoRetorno t 
@@ -283,16 +283,13 @@ obtenerName (a,b) = a
 
 obtenerType::(Name,Type) -> Type
 obtenerType (a,b) = b
-
---obtenerTipoVariable::Name->[(Name,Type)] -> Type
---obtenerTipoVariable x (y:ys) | x == (obtenerName y) = obtenerType y
---                             | otherwise = obtenerTipoVariable x ys
---obtenerTipoVariable x [] =                 
+               
 obtenerTipoVariable :: Name -> [(Name, Type)] -> Type
 obtenerTipoVariable x xs =
   case lookup x xs of
     Just t -> t
     Nothing -> error "La variable no se encontró en la lista."
+
 consultarVariableAmbiente::Name->[(Name,Type)] -> Bool
 
 consultarVariableAmbiente x (y:ys) | x == (obtenerName y) = True
