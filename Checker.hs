@@ -176,9 +176,21 @@ corroborarTipo t xs (Infix LEq e1 e2) ys| (TyBool == t) = corroborarTipo (obtene
                                         | otherwise = [Expected t TyBool] ++ corroborarTipo (obtenerTipoError xs e1 ys) xs e1 ys ++  corroborarTipo (obtenerTipoError xs e1 ys) xs e2 ys
 corroborarTipo t xs (Infix o e1 e2) ys | ((obtenerTipoOperador o) == t) = corroborarTipo (obtenerTipoOperador o) xs e1 ys ++ corroborarTipo (obtenerTipoOperador o) xs e2 ys
                                         | otherwise = [Expected t (obtenerTipoOperador o)]
-corroborarTipo t xs  (If e1 e2 e3) ys = corroborarTipo (TyBool) xs e1 ys ++ corroborarTipo t xs e2 ys ++ corroborarTipo (obtenerTipoError xs e2 ys) xs e3 ys
---corroborarTipo t xs  (If e1 e2 e3) ys = corroborarTipo t xs e2 ys ++ corroborarTipo (obtenerTipoError xs e2 ys) xs e3 ys ++ corroborarTipo (TyBool) xs e1 ys 
-
+corroborarTipo t xs  (If e1 e2 e3) ys = if (obtenerTipoError xs e2 ys == t) && (obtenerTipoError xs e1 ys == TyBool) && (obtenerTipoError xs e2 ys == obtenerTipoError xs e3 ys)
+                                        then corroborarTipo (obtenerTipoError xs e1 ys) xs e1 ys ++ corroborarTipo (obtenerTipoError xs e2 ys) xs e2 ys ++ corroborarTipo (obtenerTipoError xs e3 ys) xs e3 ys
+                                        else if (obtenerTipoError xs e2 ys == t) && (obtenerTipoError xs e1 ys == TyBool)
+                                              then [Expected (obtenerTipoError xs e2 ys) (obtenerTipoError xs e3 ys)] ++ corroborarTipo (obtenerTipoError xs e1 ys) xs e1 ys ++ corroborarTipo (obtenerTipoError xs e2 ys) xs e2 ys ++ corroborarTipo (obtenerTipoError xs e3 ys) xs e3 ys
+                                              else if (obtenerTipoError xs e2 ys == t) && (obtenerTipoError xs e2 ys == obtenerTipoError xs e3 ys)
+                                                      then [Expected TyBool (obtenerTipoError xs e1 ys)] ++ corroborarTipo (obtenerTipoError xs e1 ys) xs e1 ys ++ corroborarTipo (obtenerTipoError xs e2 ys) xs e2 ys ++ corroborarTipo (obtenerTipoError xs e3 ys) xs e3 ys
+                                                      else if (obtenerTipoError xs e1 ys == TyBool) && (obtenerTipoError xs e2 ys == obtenerTipoError xs e3 ys)
+                                                            then [Expected t (obtenerTipoError xs e2 ys)] ++ corroborarTipo (obtenerTipoError xs e1 ys) xs e1 ys ++ corroborarTipo (obtenerTipoError xs e2 ys) xs e2 ys ++ corroborarTipo (obtenerTipoError xs e3 ys) xs e3 ys
+                                                            else if (obtenerTipoError xs e2 ys == t)
+                                                                    then [Expected TyBool (obtenerTipoError xs e1 ys)] ++ [Expected (obtenerTipoError xs e2 ys) (obtenerTipoError xs e3 ys)] ++ corroborarTipo (obtenerTipoError xs e1 ys) xs e1 ys ++ corroborarTipo (obtenerTipoError xs e2 ys) xs e2 ys ++ corroborarTipo (obtenerTipoError xs e3 ys) xs e3 ys
+                                                                    else if (obtenerTipoError xs e1 ys == TyBool)
+                                                                          then [Expected t (obtenerTipoError xs e2 ys)] ++ [Expected (obtenerTipoError xs e2 ys) (obtenerTipoError xs e3 ys)] ++ corroborarTipo (obtenerTipoError xs e1 ys) xs e1 ys ++ corroborarTipo (obtenerTipoError xs e2 ys) xs e2 ys ++ corroborarTipo (obtenerTipoError xs e3 ys) xs e3 ys
+                                                                          else if (obtenerTipoError xs e2 ys == obtenerTipoError xs e3 ys)
+                                                                                  then [Expected TyBool (obtenerTipoError xs e1 ys)] ++ [Expected TyBool (obtenerTipoError xs e1 ys)] ++ corroborarTipo (obtenerTipoError xs e1 ys) xs e1 ys ++ corroborarTipo (obtenerTipoError xs e2 ys) xs e2 ys ++ corroborarTipo (obtenerTipoError xs e3 ys) xs e3 ys
+                                                                                  else []
 corroborarTipo TyBool xs (IntLit x) ys = [Expected TyBool TyInt]
 
 corroborarTipo t xs  (App name ws) ys | ((getTipoFuncionPorNombre ys name) == t) = checkNameParameterApp (App name ws) ys ++ verificarParametrosSegunFirma (getTiposFuncionPorNombre ys name) ws xs ys
