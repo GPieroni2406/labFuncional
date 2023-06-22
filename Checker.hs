@@ -48,7 +48,7 @@ checkProgram (Program xs exp) = if (length (checkFunctionDup [] xs ++ checkParam
                                           else Ok
 
 
--------2.1----------------
+
 checkFunctionDup::[String]->Defs->[Error]
 checkFunctionDup ys (x:xs) | elem (obtenerNombre x) ys = [Duplicated (obtenerNombre x)] ++ checkFunctionDup ys xs
                            | otherwise = checkFunctionDup (obtenerNombre x :ys) xs 
@@ -65,10 +65,7 @@ checkParameterDup xs (y:ys) | elem y xs =  [Duplicated y] ++ checkParameterDup x
                             | otherwise = checkParameterDup (y:xs) ys
 checkParameterDup xs [] = []
 
-----------------------------------------------
 
-
------------------2.2-------------------
 checkNameParameter::Defs->[Error]
 checkNameParameter (x:xs)| length (obtenerParametros x) == length (obtenerParametrosEnFirma x) = checkNameParameter xs
                         | otherwise = [ArgNumDef (obtenerNombre x) (length(obtenerParametrosEnFirma x)) (length(obtenerParametros x))] ++ checkNameParameter xs
@@ -99,10 +96,6 @@ checkMainAux:: Defs-> String-> Int -> [Error]
 checkMainAux xs name cantidad | (parametrosFunDef xs name) == cantidad = []
                               | otherwise = [ArgNumApp (name) (parametrosFunDef xs name) (cantidad)] 
 
------------------------------------------
-
--------2.3-----------------------
-
 compararVariablesFuncion :: Defs -> [Error]
 compararVariablesFuncion defs = compararVariablesFuncionAux defs defs
 
@@ -117,7 +110,7 @@ compararVariablesExpresion ys (Let (x,y) e1 e2) zs | (elem x ys) = compararVaria
 compararVariablesExpresion ys (App name xs) zs | (existeFunDef zs name) =  recorrerListaExpresion ys xs zs
                                                | otherwise = [Undefined name] ++ recorrerListaExpresion ys xs zs
 compararVariablesExpresion ys _ zs = [] 
---Para el caso donde tenemos una lista de expresiones, la recorre y entra a la funcion de arriba.
+
 recorrerListaExpresion :: [String]->[Expr]-> Defs ->[Error]
 recorrerListaExpresion ys (x:xs) zs = compararVariablesExpresion ys x zs ++ recorrerListaExpresion ys xs zs
 recorrerListaExpresion ys [] zs = []
@@ -132,15 +125,26 @@ verificarFuncionesExistentes xs (Var x) zs | (consultarVariableAmbiente x zs) = 
                                            | otherwise = [Undefined x] 
 verificarFuncionesExistentes xs _ zs = []
 
+checkTypeTotalAux :: Defs -> Defs -> Expr -> [Error]
+checkTypeTotalAux xs ys main = checkTypeDefinicion xs ++ checkTypeMain xs main
 
+obtenerNombre::FunDef -> String
+obtenerNombre (FunDef (n, x) ys e) = n
+
+obtenerParametros::FunDef->[String]
+obtenerParametros (FunDef(n, x) ys e) = ys
+
+obtenerParametrosEnFirma :: FunDef->[Type]
+obtenerParametrosEnFirma (FunDef(a, x) ys e) = listaEntrada x
+
+listaEntrada::Sig->[Type]
+listaEntrada (Sig xs y) = xs
 
 desglosarExpresiones :: Defs -> [Expr] -> [(Name,Type)]-> [Error]
 desglosarExpresiones xs (y:ys) zs = verificarFuncionesExistentes xs y zs ++ desglosarExpresiones xs ys zs
 desglosarExpresiones xs [] _ = []
 
--------------------------------------------------------------------------------------------------------
 
--------------------------------------2.4----------------------------------
 checkTypeTotal :: Defs -> Expr -> [Error]
 checkTypeTotal defs main = checkTypeTotalAux defs defs main
 
@@ -202,29 +206,12 @@ corroborarTipo t xs  (Let (x,y) e1 e2) ys   | ((obtenerTipoError (sustituirDupla
                                             | otherwise = [Expected t (obtenerTipoError (sustituirDupla (x,y) xs) e2 ys)] ++ ((corroborarTipo y xs e1 ys) ++ (corroborarTipo (obtenerTipoError (sustituirDupla (x,y) xs) e2 ys) (sustituirDupla (x,y) xs) e2 ys))
 
 
--------------------------------------------------------------------------------------------------------
-
-
------------------------------------------AUXILIARES---------------------------------------------
 compararVariablesFuncionAux :: Defs -> Defs -> [Error]
 compararVariablesFuncionAux (x:xs) ys = compararVariablesExpresion (obtenerParametros x) (obtenerExpresion x) ys ++ compararVariablesFuncionAux xs ys
 compararVariablesFuncionAux [] _ = []
 
 
-checkTypeTotalAux :: Defs -> Defs -> Expr -> [Error]
-checkTypeTotalAux xs ys main = checkTypeDefinicion xs ++ checkTypeMain xs main
 
-obtenerNombre::FunDef -> String
-obtenerNombre (FunDef (n, x) ys e) = n
-
-obtenerParametros::FunDef->[String]
-obtenerParametros (FunDef(n, x) ys e) = ys
-
-obtenerParametrosEnFirma :: FunDef->[Type]
-obtenerParametrosEnFirma (FunDef(a, x) ys e) = listaEntrada x
-
-listaEntrada::Sig->[Type]
-listaEntrada (Sig xs y) = xs
 
 obtenerExpresion::FunDef->Expr
 obtenerExpresion (FunDef(a, x) ys e) = e
